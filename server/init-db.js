@@ -1,6 +1,10 @@
 const mysql = require('mysql2/promise');
 
 async function initDatabase() {
+  // 检查命令行参数
+  const args = process.argv.slice(2);
+  const shouldReset = args.includes('--reset') || args.includes('-r');
+
   let connection;
 
   try {
@@ -15,19 +19,33 @@ async function initDatabase() {
 
     console.log('已连接到MySQL服务器');
 
-    // 检查数据库是否存在
-    const [databases] = await connection.execute(
-      'SHOW DATABASES LIKE "milkywayidle"',
-    );
+    if (shouldReset) {
+      console.log('🔄 重置模式：将删除并重建整个数据库...');
 
-    if (databases.length === 0) {
-      console.log('数据库 milkywayidle 不存在，正在创建...');
+      // 删除数据库（如果存在）
+      await connection.execute('DROP DATABASE IF EXISTS milkywayidle');
+      console.log('🗑️  已删除旧数据库 milkywayidle');
+
+      // 重新创建数据库
       await connection.execute(
         'CREATE DATABASE milkywayidle CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
       );
-      console.log('数据库 milkywayidle 创建成功');
+      console.log('✅ 已重新创建数据库 milkywayidle');
     } else {
-      console.log('数据库 milkywayidle 已存在');
+      // 检查数据库是否存在
+      const [databases] = await connection.execute(
+        'SHOW DATABASES LIKE "milkywayidle"',
+      );
+
+      if (databases.length === 0) {
+        console.log('数据库 milkywayidle 不存在，正在创建...');
+        await connection.execute(
+          'CREATE DATABASE milkywayidle CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
+        );
+        console.log('数据库 milkywayidle 创建成功');
+      } else {
+        console.log('数据库 milkywayidle 已存在');
+      }
     }
 
     // 切换到 milkywayidle 数据库
@@ -146,14 +164,22 @@ async function initDatabase() {
         base_production INT DEFAULT 1,
         action_time INT NOT NULL,
         required_level INT DEFAULT 1,
+        score INT DEFAULT 1,
         description TEXT,
         PRIMARY KEY (module_id, unit_id)
       )
     `);
     console.log('✓ unit_definitions 表已创建/确认');
 
-    console.log('\n✅ 数据库和所有表结构初始化完成！');
-    console.log('现在可以运行 node init-data.js 来初始化数据');
+    if (shouldReset) {
+      console.log('\n🎉 数据库重置完成！');
+      console.log(
+        '所有数据已清除，现在可以运行 node init-data.js 来初始化数据',
+      );
+    } else {
+      console.log('\n✅ 数据库和所有表结构初始化完成！');
+      console.log('现在可以运行 node init-data.js 来初始化数据');
+    }
   } catch (error) {
     console.error('❌ 数据库初始化失败:', error);
     process.exit(1);

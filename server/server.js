@@ -572,6 +572,10 @@ async function handleUpdateActivities(userId) {
           actualCompleted * 10,
         );
 
+        // 添加分数（根据单位分数和生产数量）
+        const scoreToAdd = actualCompleted * unitInfo.score;
+        await addUserScore(userId, scoreToAdd);
+
         // 累计单位生产数量和拥有数量
         await pool.query(
           'UPDATE user_units SET produced = produced + ?, owned = owned + ? WHERE user_id = ? AND module_id = ? AND unit_id = ?',
@@ -593,7 +597,7 @@ async function handleUpdateActivities(userId) {
         console.log(
           `活动完成: ${activity.id}, 生产 ${totalProduction} 资源, 添加 ${
             actualCompleted * 10
-          } 经验`,
+          } 经验, 添加 ${scoreToAdd} 分数`,
         );
 
         // 活动完成后立即发送用户状态更新
@@ -635,6 +639,11 @@ async function handleUpdateActivities(userId) {
             (actualCompleted - activity.current_times) * 10,
           );
 
+          // 添加分数（根据单位分数和生产数量）
+          const scoreToAdd =
+            (actualCompleted - activity.current_times) * unitInfo.score;
+          await addUserScore(userId, scoreToAdd);
+
           // 累计单位生产数量和拥有数量
           await pool.query(
             'UPDATE user_units SET produced = produced + ?, owned = owned + ? WHERE user_id = ? AND module_id = ? AND unit_id = ?',
@@ -650,7 +659,7 @@ async function handleUpdateActivities(userId) {
           console.log(
             `活动进度更新: ${activity.id}, 生产 ${totalProduction} 资源, 添加 ${
               (actualCompleted - activity.current_times) * 10
-            } 经验`,
+            } 经验, 添加 ${scoreToAdd} 分数`,
           );
 
           // 进度更新后立即发送用户状态更新，确保成就和积分及时更新
@@ -692,6 +701,7 @@ async function getUnitInfo(moduleId, unitId) {
       baseProduction: unit.base_production,
       actionTime: unit.action_time,
       requiredLevel: unit.required_level,
+      score: unit.score,
       rarity: unit.rarity,
       description: unit.description,
     };
@@ -720,6 +730,19 @@ async function addUserResource(userId, resourceName, amount) {
     'INSERT INTO user_resources (user_id, resource_name, amount) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE amount = amount + ?',
     [userId, resourceName, amount, amount],
   );
+}
+
+async function addUserScore(userId, score) {
+  try {
+    // 更新排行榜中的分数
+    await pool.query(
+      'INSERT INTO leaderboard (user_id, score) VALUES (?, ?) ON DUPLICATE KEY UPDATE score = score + ?',
+      [userId, score, score],
+    );
+    console.log(`用户 ${userId} 分数增加 ${score}`);
+  } catch (error) {
+    console.error('增加用户分数错误:', error);
+  }
 }
 
 // 根据经验值计算等级和下一级所需经验
@@ -976,6 +999,7 @@ async function getAllUnitDefinitions() {
       baseProduction: unit.base_production,
       actionTime: unit.action_time,
       requiredLevel: unit.required_level,
+      score: unit.score,
       description: unit.description,
     }));
 

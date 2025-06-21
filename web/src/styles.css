@@ -1564,6 +1564,7 @@ body {
 
 /* 资源显示样式 */
 .resources-display {
+  margin-top: 10px;
   display: flex;
   justify-content: center;
   align-items: center;

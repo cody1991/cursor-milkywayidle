@@ -115,6 +115,10 @@ const HelpPanel: React.FC = () => {
                         <span>效率:</span>
                         <span>{((unit.baseProduction / (unit.actionTime / 1000)) * 60).toFixed(1)}/分钟</span>
                       </div>
+                      <div className="unit-stat">
+                        <span>分数:</span>
+                        <span>{unit.score}</span>
+                      </div>
                     </div>
                     <div className="unit-description">
                       {unit.description}

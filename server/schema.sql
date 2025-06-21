@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS unit_definitions (
   base_production INT DEFAULT 1,
   action_time INT NOT NULL,
   required_level INT DEFAULT 1,
+  score INT DEFAULT 1,
   description TEXT,
   PRIMARY KEY (module_id, unit_id)
 ); 

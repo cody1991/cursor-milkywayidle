@@ -72,6 +72,7 @@ export interface UnitDefinition {
   baseProduction: number
   actionTime: number
   requiredLevel: number
+  score: number
   description: string
 }
 

@@ -122,55 +122,51 @@ const FloatingActivities: React.FC = () => {
   console.log('FloatingActivities: 显示面板，活跃活动数量:', activeActivities.length)
 
   return (
-    <Draggable
-      handle=".floating-activities-header"
-      bounds="body"
-    >
-      <div className="floating-activities" style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px'
-      }}>
-        <div className="floating-activities-header">
-          <h3>🔄 当前活动</h3>
-          <span className="activity-count">{activeActivities.length}</span>
-        </div>
-        <div className="floating-activities-list">
-          {activeActivities.map((activity, index) => {
-            const unitInfo = getUnitInfo(activity.moduleId, activity.unitId)
-            const progress = getActivityProgress(activity)
-            const activityId = activity.id
 
-            return (
-              <div key={activityId} className="floating-activity-item">
-                <div className="floating-activity-info">
-                  <div className="floating-activity-header">
-                    <span className="floating-activity-name">
-                      {unitInfo?.name || activity.unitId} - {activity.times === INFINITE_PRODUCTION ? '无限' : `${activity.currentTimes}/${activity.times}`}次
-                    </span>
-                    <span className="floating-activity-time">{formatRemainingTime(activity)}</span>
-                  </div>
-                  <div className="floating-activity-progress">
-                    <div className="floating-activity-progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
+    <div className="floating-activities" style={{
+      position: 'fixed',
+      top: '20px',
+      right: '20px'
+    }}>
+      <div className="floating-activities-header">
+        <h3>🔄 当前活动</h3>
+        <span className="activity-count">{activeActivities.length}</span>
+      </div>
+      <div className="floating-activities-list">
+        {activeActivities.map((activity, index) => {
+          const unitInfo = getUnitInfo(activity.moduleId, activity.unitId)
+          const progress = getActivityProgress(activity)
+          const activityId = activity.id
+
+          return (
+            <div key={activityId} className="floating-activity-item">
+              <div className="floating-activity-info">
+                <div className="floating-activity-header">
+                  <span className="floating-activity-name">
+                    {unitInfo?.name || activity.unitId} - {activity.times === INFINITE_PRODUCTION ? '无限' : `${activity.currentTimes}/${activity.times}`}次
+                  </span>
+                  <span className="floating-activity-time">{formatRemainingTime(activity)}</span>
+                </div>
+                <div className="floating-activity-progress">
+                  <div className="floating-activity-progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
                 </div>
-                <button
-                  className="floating-stop-activity-button"
-                  onClick={() => handleStopActivity(activityId)}
-                >
-                  停止
-                </button>
               </div>
-            )
-          })}
-        </div>
+              <button
+                className="floating-stop-activity-button"
+                onClick={() => handleStopActivity(activityId)}
+              >
+                停止
+              </button>
+            </div>
+          )
+        })}
       </div>
-    </Draggable>
+    </div>
   )
 }
 
