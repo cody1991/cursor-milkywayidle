@@ -601,36 +601,30 @@ export const useGameStore = create<GameState>()(
         console.log('当前资源状态:', state.resources)
         console.log('当前单位状态:', state.units)
         console.log('当前模块状态:', state.modules)
+        console.log('当前单位定义:', state.unitDefinitions)
 
-        // 计算总资源数量
-        const totalResources = Object.values(state.resources).reduce((sum, resource) => {
-          console.log(`资源: ${JSON.stringify(resource)}, amount: ${resource.amount}, type: ${typeof resource.amount}`)
-          return sum + Number(resource.amount || 0)
-        }, 0)
+        // 计算总分数 = 所有单位 owned * unitDefinition.score 之和
+        let totalScore = 0
+        for (const unitKey in state.units) {
+          const unit = state.units[unitKey]
+          // unitKey 形如 moduleId.unitId
+          const [moduleId, unitId] = unitKey.split('.')
+          const unitDef = state.unitDefinitions?.find(
+            (def) => def.moduleId === moduleId && def.unitId === unitId
+          )
+          if (unitDef && typeof unit.owned === 'number' && typeof unitDef.score === 'number') {
+            totalScore += unit.owned * unitDef.score
+          }
+        }
 
-        // 计算总单位数量（从独立的units对象中获取）
-        const totalUnits = Object.values(state.units).reduce((sum, unit) => {
-          console.log(`单位: ${JSON.stringify(unit)}, owned: ${unit.owned}, type: ${typeof unit.owned}`)
-          return sum + Number(unit.owned || 0)
-        }, 0)
+        console.log(`提交分数: 总分=${totalScore}`)
 
-        // 计算总等级
-        const totalLevels = Object.values(state.modules).reduce((sum, module) => {
-          console.log(`模块: ${JSON.stringify(module)}, currentLevel: ${module.currentLevel}, type: ${typeof module.currentLevel}`)
-          return sum + Number(module.currentLevel || 0)
-        }, 0)
-
-        // 分数 = 资源数量 + (单位数量 - 基础单位数量) * 5 + (等级 - 基础等级) * 50
-        // 新用户基础单位数量为2，基础等级为3，所以新用户分数为0
-        const baseUnits = 2 // 新用户默认拥有的单位数量
-        const baseLevels = 3 // 新用户默认的等级总和
-        const score = totalResources + Math.max(0, totalUnits - baseUnits) * 5 + Math.max(0, totalLevels - baseLevels) * 50
-
-        console.log(`提交分数: 资源=${totalResources}, 单位=${totalUnits}, 等级=${totalLevels}, 总分=${score}`)
-
+        // 发送分数和经验同步请求
         state.ws.send(JSON.stringify({
-          type: 'submit_score',
-          score
+          type: 'submit_score_and_sync_experience',
+          score: totalScore,
+          units: state.units,
+          unitDefinitions: state.unitDefinitions
         }))
       } catch (error) {
         console.error('提交分数失败:', error)
@@ -646,26 +640,27 @@ export const useGameStore = create<GameState>()(
       }
 
       try {
-        // 计算总资源数量
-        const totalResources = Object.values(state.resources).reduce((sum, resource) => sum + Number(resource.amount || 0), 0)
+        // 计算总分数 = 所有单位 owned * unitDefinition.score 之和
+        let totalScore = 0
+        for (const unitKey in state.units) {
+          const unit = state.units[unitKey]
+          const [moduleId, unitId] = unitKey.split('.')
+          const unitDef = state.unitDefinitions?.find(
+            (def) => def.moduleId === moduleId && def.unitId === unitId
+          )
+          if (unitDef && typeof unit.owned === 'number' && typeof unitDef.score === 'number') {
+            totalScore += unit.owned * unitDef.score
+          }
+        }
 
-        // 计算总单位数量
-        const totalUnits = Object.values(state.units).reduce((sum, unit) => sum + Number(unit.owned || 0), 0)
+        console.log(`自动提交分数: 总分=${totalScore}`)
 
-        // 计算总等级
-        const totalLevels = Object.values(state.modules).reduce((sum, module) => sum + Number(module.currentLevel || 0), 0)
-
-        // 分数 = 资源数量 + (单位数量 - 基础单位数量) * 5 + (等级 - 基础等级) * 50
-        // 新用户基础单位数量为2，基础等级为3，所以新用户分数为0
-        const baseUnits = 2 // 新用户默认拥有的单位数量
-        const baseLevels = 3 // 新用户默认的等级总和
-        const score = totalResources + Math.max(0, totalUnits - baseUnits) * 5 + Math.max(0, totalLevels - baseLevels) * 50
-
-        console.log(`自动提交分数: 资源=${totalResources}, 单位=${totalUnits}, 等级=${totalLevels}, 总分=${score}`)
-
+        // 发送分数和经验同步请求
         state.ws.send(JSON.stringify({
-          type: 'submit_score',
-          score
+          type: 'submit_score_and_sync_experience',
+          score: totalScore,
+          units: state.units,
+          unitDefinitions: state.unitDefinitions
         }))
       } catch (error) {
         console.error('自动提交分数失败:', error)

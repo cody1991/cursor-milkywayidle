@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import Draggable from 'react-draggable'
 import { useGameStore, INFINITE_PRODUCTION } from '../store/gameStore'
+import AnimatedNumber from './AnimatedNumber'
 
 const FloatingActivities: React.FC = () => {
   const { activities, stopActivity, unitDefinitions } = useGameStore()
@@ -42,10 +43,10 @@ const FloatingActivities: React.FC = () => {
   // 专门的进度更新定时器 - 只在有活跃活动时运行
   useEffect(() => {
     if (activeActivities.length > 0) {
-      // 有活跃活动时，每100ms更新一次进度
+      // 有活跃活动时，每50ms更新一次进度（更流畅的毫秒显示）
       progressTimerRef.current = setInterval(() => {
         setProgressUpdateTrigger(prev => prev + 1)
-      }, 100)
+      }, 50)
     } else {
       // 没有活跃活动时，清除定时器
       if (progressTimerRef.current) {
@@ -109,25 +110,27 @@ const FloatingActivities: React.FC = () => {
         }
       }
 
-      // 计算剩余时间
+      // 计算剩余时间（毫秒精度）
       let remainingTime = '已完成'
+      let remainingMilliseconds = 0
       if (activity.isActive && unitInfo) {
         if (activity.times === INFINITE_PRODUCTION) {
           // 无限次活动：显示当前循环的剩余时间
           const elapsed = Date.now() - activity.startTime
           const cycleElapsed = elapsed % unitInfo.actionTime
           const remaining = unitInfo.actionTime - cycleElapsed
-          const seconds = (remaining / 1000).toFixed(1)
-          remainingTime = `${seconds}秒 (循环)`
+          remainingMilliseconds = remaining
+          remainingTime = `${(remaining / 1000).toFixed(3)}秒 (循环)`
         } else {
           // 有限次活动：显示总体剩余时间
           const duration = unitInfo.actionTime * activity.times
           const remaining = duration - (Date.now() - activity.startTime)
           if (remaining <= 0) {
             remainingTime = '即将完成'
+            remainingMilliseconds = 0
           } else {
-            const seconds = (remaining / 1000).toFixed(1)
-            remainingTime = `${seconds}秒`
+            remainingMilliseconds = remaining
+            remainingTime = `${(remaining / 1000).toFixed(3)}秒`
           }
         }
       }
@@ -136,7 +139,8 @@ const FloatingActivities: React.FC = () => {
         ...activity,
         unitInfo,
         progress,
-        remainingTime
+        remainingTime,
+        remainingMilliseconds
       }
     })
   }, [activeActivities, getUnitInfo, progressUpdateTrigger]) // 添加progressUpdateTrigger作为依赖
@@ -156,7 +160,9 @@ const FloatingActivities: React.FC = () => {
       }}>
         <div className="floating-activities-header">
           <h3>🔄 当前活动</h3>
-          <span className="activity-count">{activeActivities.length}</span>
+          <span className="activity-count">
+            <AnimatedNumber value={activeActivities.length} duration={400} keepDecimals={false} />
+          </span>
         </div>
         <div className="floating-activities-list">
           {activeActivities.length === 0 ? (
@@ -175,9 +181,26 @@ const FloatingActivities: React.FC = () => {
                   <div className="floating-activity-info">
                     <div className="floating-activity-header">
                       <span className="floating-activity-name">
-                        {activity.unitInfo?.name || activity.unitId} - {activity.times === INFINITE_PRODUCTION ? '无限' : `${activity.currentTimes}/${activity.times}`}次
+                        {activity.unitInfo?.name || activity.unitId} - {activity.times === INFINITE_PRODUCTION ? '无限' : (
+                          <>
+                            <AnimatedNumber value={activity.currentTimes} duration={300} keepDecimals={false} />/
+                            <AnimatedNumber value={activity.times} duration={300} keepDecimals={false} />
+                          </>
+                        )}次
                       </span>
-                      <span className="floating-activity-time">{activity.remainingTime}</span>
+                      <span className="floating-activity-time">
+                        {activity.remainingTime === '已完成' || activity.remainingTime === '即将完成' ? (
+                          activity.remainingTime
+                        ) : (
+                          <>
+                            <AnimatedNumber
+                              value={activity.remainingMilliseconds / 1000}
+                              duration={100}
+                              formatFunction={(num) => `${num.toFixed(3)}秒${activity.times === INFINITE_PRODUCTION ? ' (循环)' : ''}`}
+                            />
+                          </>
+                        )}
+                      </span>
                     </div>
                     <div className="floating-activity-progress">
                       <div className="floating-activity-progress-bar">

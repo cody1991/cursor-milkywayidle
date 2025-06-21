@@ -111,7 +111,8 @@ const ResourceDisplay: React.FC = () => {
       baseProduction: unit.baseProduction,
       actionTime: unit.actionTime,
       requiredLevel: unit.requiredLevel,
-      description: unit.description
+      description: unit.description,
+      score: unit.score
     }
   }
 
@@ -180,7 +181,7 @@ const ResourceDisplay: React.FC = () => {
                   </div>
                 ) : (
                   <div className="level-info">
-                    <span>等级 <AnimatedNumber value={module.currentLevel} duration={800} /></span>
+                    <span>等级 <AnimatedNumber value={module.currentLevel} duration={800} keepDecimals={false} /></span>
                     <div className="experience-bar">
                       <div
                         className="experience-fill"
@@ -190,7 +191,7 @@ const ResourceDisplay: React.FC = () => {
                       />
                     </div>
                     <span className="experience-text">
-                      {module.experience} / {module.levelExperience}
+                      <AnimatedNumber value={module.experience} duration={600} keepDecimals={false} /> / <AnimatedNumber value={module.levelExperience} duration={600} keepDecimals={false} />
                     </span>
                   </div>
                 )}
@@ -222,7 +223,11 @@ const ResourceDisplay: React.FC = () => {
                       <h4>{unitInfo.name}</h4>
                       <p>
                         <span>拥有数量:</span>
-                        <span><AnimatedNumber value={unit ? unit.owned : 0} duration={600} /></span>
+                        <span><AnimatedNumber value={unit ? unit.owned : 0} duration={600} keepDecimals={false} /></span>
+                      </p>
+                      <p>
+                        <span style={{ color: '#64b5f6', fontWeight: 500 }}>分数:</span>
+                        <span style={{ color: '#FFD700', fontWeight: 600 }}>{unitInfo.score}</span>
                       </p>
                       <p>
                         <span>单次产量:</span>

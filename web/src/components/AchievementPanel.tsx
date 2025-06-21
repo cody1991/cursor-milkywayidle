@@ -111,14 +111,14 @@ const AchievementPanel: React.FC = () => {
                 <div key={`${stat.moduleId}.${stat.unitId}`} className="stat-item">
                   <div className="stat-header">
                     <span className="stat-name" style={{ color: stat.titleColor }}>{stat.title}</span>
-                    <span className="stat-produced">已生产: <AnimatedNumber value={stat.produced} duration={800} formatFunction={formatNumber} /></span>
+                    <span className="stat-produced">已生产: <AnimatedNumber value={stat.produced} duration={800} formatFunction={formatNumber} keepDecimals={false} /></span>
                   </div>
                   <div className="stat-progress">
                     {stat.required > 0 ? (
                       <>
                         <div className="progress-info">
                           <span>下一个称号: {stat.nextTitle}</span>
-                          <span><AnimatedNumber value={stat.produced} duration={600} />/{stat.required}</span>
+                          <span><AnimatedNumber value={stat.produced} duration={600} keepDecimals={false} />/{stat.required}</span>
                         </div>
                         <div className="progress-bar">
                           <div

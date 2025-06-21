@@ -127,17 +127,17 @@ const Game: React.FC = () => {
           <div className="resource-item">
             <span className="resource-icon">🥛</span>
             <span className="resource-name">牛奶:</span>
-            <AnimatedNumber value={Math.floor(resources.milk?.amount || 0)} duration={800} />
+            <AnimatedNumber value={Math.floor(resources.milk?.amount || 0)} duration={800} keepDecimals={false} />
           </div>
           <div className="resource-item">
             <span className="resource-icon">🌿</span>
             <span className="resource-name">采摘:</span>
-            <AnimatedNumber value={Math.floor(resources.harvest?.amount || 0)} duration={800} />
+            <AnimatedNumber value={Math.floor(resources.harvest?.amount || 0)} duration={800} keepDecimals={false} />
           </div>
           <div className="resource-item">
             <span className="resource-icon">🪵</span>
             <span className="resource-name">木材:</span>
-            <AnimatedNumber value={Math.floor(resources.wood?.amount || 0)} duration={800} />
+            <AnimatedNumber value={Math.floor(resources.wood?.amount || 0)} duration={800} keepDecimals={false} />
           </div>
         </div>
 

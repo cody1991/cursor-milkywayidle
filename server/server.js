@@ -59,6 +59,14 @@ wss.on('connection', async (ws, req) => {
         case 'submit_score':
           await handleSubmitScore(userId, data.score);
           break;
+        case 'submit_score_and_sync_experience':
+          await handleSubmitScoreAndSyncExperience(
+            userId,
+            data.score,
+            data.units,
+            data.unitDefinitions,
+          );
+          break;
         case 'fetch_leaderboard':
           await handleFetchLeaderboard(ws);
           break;
@@ -258,6 +266,46 @@ async function handleSubmitScore(userId, score) {
     });
   } catch (error) {
     console.error('提交分数错误:', error);
+  }
+}
+
+// 处理提交分数并同步经验
+async function handleSubmitScoreAndSyncExperience(
+  userId,
+  score,
+  units,
+  unitDefinitions,
+) {
+  try {
+    console.log(`用户 ${userId} 提交分数: ${score}`);
+
+    await pool.query(
+      'REPLACE INTO leaderboard (user_id, score) VALUES (?, ?)',
+      [userId, score],
+    );
+
+    console.log(`分数已保存到数据库: 用户=${userId}, 分数=${score}`);
+
+    // 广播排行榜更新
+    const leaderboardData = {
+      type: 'leaderboard_update',
+      userId,
+      score,
+    };
+
+    broadcastToAll(leaderboardData);
+
+    // 重新发送排行榜给所有用户
+    clients.forEach(async (client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        await handleFetchLeaderboard(client);
+      }
+    });
+
+    // 同步经验
+    await syncExperience(userId, units, unitDefinitions);
+  } catch (error) {
+    console.error('提交分数并同步经验错误:', error);
   }
 }
 
@@ -565,11 +613,11 @@ async function handleUpdateActivities(userId) {
           totalProduction,
         );
 
-        // 添加经验
+        // 添加经验（按照单位分数计算）
         await addModuleExperience(
           userId,
           activity.module_id,
-          actualCompleted * 10,
+          actualCompleted * unitInfo.score,
         );
 
         // 添加分数（根据单位分数和生产数量）
@@ -596,7 +644,7 @@ async function handleUpdateActivities(userId) {
 
         console.log(
           `活动完成: ${activity.id}, 生产 ${totalProduction} 资源, 添加 ${
-            actualCompleted * 10
+            actualCompleted * unitInfo.score
           } 经验, 添加 ${scoreToAdd} 分数`,
         );
 
@@ -632,11 +680,11 @@ async function handleUpdateActivities(userId) {
             totalProduction,
           );
 
-          // 添加经验
+          // 添加经验（按照单位分数计算）
           await addModuleExperience(
             userId,
             activity.module_id,
-            (actualCompleted - activity.current_times) * 10,
+            (actualCompleted - activity.current_times) * unitInfo.score,
           );
 
           // 添加分数（根据单位分数和生产数量）
@@ -658,7 +706,7 @@ async function handleUpdateActivities(userId) {
 
           console.log(
             `活动进度更新: ${activity.id}, 生产 ${totalProduction} 资源, 添加 ${
-              (actualCompleted - activity.current_times) * 10
+              (actualCompleted - activity.current_times) * unitInfo.score
             } 经验, 添加 ${scoreToAdd} 分数`,
           );
 
@@ -1028,5 +1076,71 @@ async function handleFetchUnitDefinitions(ws) {
     console.log('单位定义数据已发送到客户端');
   } catch (error) {
     console.error('获取单位定义错误:', error);
+  }
+}
+
+// 同步经验值
+async function syncExperience(userId, units, unitDefinitions) {
+  try {
+    console.log(`开始同步用户 ${userId} 的经验值`);
+
+    // 按模块分组计算经验值
+    const moduleExperience = {};
+
+    for (const unitKey in units) {
+      const unit = units[unitKey];
+      const [moduleId, unitId] = unitKey.split('.');
+      const unitDef = unitDefinitions?.find(
+        (def) => def.moduleId === moduleId && def.unitId === unitId,
+      );
+
+      if (
+        unitDef &&
+        typeof unit.owned === 'number' &&
+        typeof unitDef.score === 'number'
+      ) {
+        const experience = unit.owned * unitDef.score;
+        moduleExperience[moduleId] =
+          (moduleExperience[moduleId] || 0) + experience;
+        console.log(
+          `模块 ${moduleId} 单位 ${unitId}: 拥有 ${unit.owned}, 分数 ${unitDef.score}, 经验 ${experience}`,
+        );
+      }
+    }
+
+    // 更新每个模块的经验值
+    for (const moduleId in moduleExperience) {
+      const totalExperience = moduleExperience[moduleId];
+      console.log(`更新模块 ${moduleId} 经验值为: ${totalExperience}`);
+
+      // 检查模块是否存在，不存在则创建
+      const [existingModule] = await pool.query(
+        'SELECT * FROM user_modules WHERE user_id = ? AND module_id = ?',
+        [userId, moduleId],
+      );
+
+      if (existingModule.length === 0) {
+        // 创建新模块记录
+        await pool.query(
+          'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
+          [userId, moduleId, totalExperience],
+        );
+        console.log(`创建模块 ${moduleId} 记录，经验值: ${totalExperience}`);
+      } else {
+        // 更新现有模块记录
+        await pool.query(
+          'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
+          [totalExperience, userId, moduleId],
+        );
+        console.log(`更新模块 ${moduleId} 经验值为: ${totalExperience}`);
+      }
+    }
+
+    console.log(`用户 ${userId} 经验值同步完成`);
+
+    // 发送更新后的用户状态
+    await sendUserState(userId);
+  } catch (error) {
+    console.error('同步经验值错误:', error);
   }
 }

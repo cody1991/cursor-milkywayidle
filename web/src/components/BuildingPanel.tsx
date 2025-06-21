@@ -1,5 +1,6 @@
 import React from 'react'
 import { useGameStore } from '../store/gameStore'
+import AnimatedNumber from './AnimatedNumber'
 
 const BuildingPanel: React.FC = () => {
   const { buildings, resources, buyBuilding } = useGameStore()
@@ -42,7 +43,7 @@ const BuildingPanel: React.FC = () => {
               <span className="building-name">{building.name}</span>
             </div>
             <div className="building-description">{building.description}</div>
-            <div className="building-owned">拥有: {building.owned}</div>
+            <div className="building-owned">拥有: <AnimatedNumber value={building.owned} duration={600} /></div>
             <div className="building-production">
               生产: +{formatNumber(building.baseProduction * building.productionMultiplier)}/s
             </div>

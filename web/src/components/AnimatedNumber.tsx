@@ -5,13 +5,15 @@ interface AnimatedNumberProps {
   duration?: number
   className?: string
   formatFunction?: (num: number) => string
+  keepDecimals?: boolean
 }
 
 const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
   value,
   duration = 1000,
   className = '',
-  formatFunction = (num: number) => num.toString()
+  formatFunction = (num: number) => num.toString(),
+  keepDecimals = true
 }) => {
   const [displayValue, setDisplayValue] = useState(value)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -32,7 +34,9 @@ const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
         const easeOutQuart = 1 - Math.pow(1 - progress, 4)
         const currentValue = startValue + (endValue - startValue) * easeOutQuart
 
-        setDisplayValue(Math.floor(currentValue))
+        // 根据keepDecimals属性决定是否保留小数
+        const finalValue = keepDecimals ? currentValue : Math.floor(currentValue)
+        setDisplayValue(finalValue)
 
         if (progress < 1) {
           requestAnimationFrame(animate)
@@ -44,7 +48,7 @@ const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
 
       requestAnimationFrame(animate)
     }
-  }, [value, duration, displayValue])
+  }, [value, duration, displayValue, keepDecimals])
 
   return (
     <span className={`animated-number ${isAnimating ? 'animating' : ''} ${className}`}>
