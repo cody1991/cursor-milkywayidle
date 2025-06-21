@@ -1,0 +1,28 @@
+{
+  "name": "milkyway-idle-server",
+  "version": "1.0.0",
+  "description": "Backend server for Milkyway Idle game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "idle",
+    "game",
+    "server",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "helmet": "^6.0.1",
+    "mysql2": "^3.14.1",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}

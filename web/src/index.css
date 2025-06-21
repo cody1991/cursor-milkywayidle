@@ -1,0 +1,33 @@
+/* 二级tab导航样式 */
+.sub-tab-navigation {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.sub-tab-button {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.sub-tab-button:hover {
+  border-color: #007bff;
+  background: #f8f9ff;
+}
+
+.sub-tab-button.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+}
+
+/* 选中模块内容区域 */
+.selected-module-content {
+  padding: 20px 0;
+}
