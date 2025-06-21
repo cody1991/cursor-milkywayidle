@@ -1,5 +1,9 @@
 const mysql = require('mysql2/promise');
 
+const dotenv = require('dotenv');
+
+dotenv.config();
+console.log(process.env.DB_HOST);
 async function initDatabase() {
   // 检查命令行参数
   const args = process.argv.slice(2);
@@ -61,6 +65,7 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(64) PRIMARY KEY,
         username VARCHAR(64) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
         experience INT DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )

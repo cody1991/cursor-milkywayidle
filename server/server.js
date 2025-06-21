@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
+const bcrypt = require('bcrypt');
 const pool = require('./db');
 
 // 环境配置
@@ -395,49 +396,6 @@ function broadcastToAll(data) {
 // API路由（保留一些基础接口用于兼容性）
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: '银河奶牛放置服务器正在运行' });
-});
-
-// 用户注册/登录
-app.post('/api/user/register', async (req, res) => {
-  try {
-    const { userId, username } = req.body;
-
-    // 先检查用户名是否已存在
-    const [existingUser] = await pool.query(
-      'SELECT id, username FROM users WHERE username = ?',
-      [username],
-    );
-
-    let actualUserId = userId;
-    let isNewUser = false;
-
-    if (existingUser.length > 0) {
-      // 用户名已存在，直接使用现有用户ID
-      actualUserId = existingUser[0].id;
-      console.log(`用户 ${username} 已存在，使用现有ID: ${actualUserId}`);
-    } else {
-      // 用户名不存在，创建新用户
-      // 使用用户名作为用户ID的一部分，确保一致性
-      const consistentUserId = `user_${username}_${Date.now()}`;
-      await pool.query('INSERT INTO users (id, username) VALUES (?, ?)', [
-        consistentUserId,
-        username,
-      ]);
-      actualUserId = consistentUserId;
-      isNewUser = true;
-      console.log(`新用户 ${username} 注册成功，ID: ${actualUserId}`);
-    }
-
-    res.json({
-      success: true,
-      userId: actualUserId,
-      username,
-      isNewUser,
-    });
-  } catch (error) {
-    console.error('用户注册错误:', error);
-    res.status(500).json({ error: '注册失败' });
-  }
 });
 
 // 游戏数据API

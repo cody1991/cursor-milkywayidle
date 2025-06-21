@@ -1,5 +1,10 @@
 const pool = require('./db');
 
+const dotenv = require('dotenv');
+
+dotenv.config();
+console.log(process.env.DB_HOST);
+
 async function initData() {
   try {
     console.log('开始初始化单位定义数据...');
