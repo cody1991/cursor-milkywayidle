@@ -33,20 +33,39 @@ const HelpPanel: React.FC = () => {
   // 生成等级经验表数据
   const generateLevelData = () => {
     const data = [];
+    let totalExperience = 0;
     for (let level = 1; level <= 500; level++) {
       if (level === 1) {
-        data.push({ level, experience: 0 });
+        data.push({ level, experience: 0, totalExperience: 0 });
       } else if (level === 2) {
-        data.push({ level, experience: 100 });
+        totalExperience = 100;
+        data.push({ level, experience: 100, totalExperience });
       } else {
         let experience = 100;
         for (let i = 3; i <= level; i++) {
           experience = Math.floor(experience * 1.1);
         }
-        data.push({ level, experience });
+        totalExperience += experience;
+        data.push({ level, experience, totalExperience });
       }
     }
     return data;
+  };
+
+  // 格式化大数字显示
+  const formatLargeNumber = (num: number): string => {
+    if (num >= 1e15) {
+      return '♾️'; // 无限大符号
+    } else if (num >= 1e12) {
+      return (num / 1e12).toFixed(1) + 'T';
+    } else if (num >= 1e9) {
+      return (num / 1e9).toFixed(1) + 'B';
+    } else if (num >= 1e6) {
+      return (num / 1e6).toFixed(1) + 'M';
+    } else if (num >= 1e3) {
+      return (num / 1e3).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
   const levelExperienceTable = generateLevelData()
@@ -116,7 +135,7 @@ const HelpPanel: React.FC = () => {
                         <span>{((unit.baseProduction / (unit.actionTime / 1000)) * 60).toFixed(1)}/分钟</span>
                       </div>
                       <div className="unit-stat">
-                        <span>分数:</span>
+                        <span>经验值:</span>
                         <span>{unit.score}</span>
                       </div>
                     </div>
@@ -160,13 +179,17 @@ const HelpPanel: React.FC = () => {
               <div key={item.level} className="experience-item">
                 <div className="level-number">Lv.{item.level}</div>
                 <div className="experience-details">
-                  <div className="required-exp">需要: {formatExperience(item.experience)}</div>
+                  <div className="required-exp">升级需要: {formatExperience(item.experience)}</div>
+                  <div className="total-exp">累计经验: {formatLargeNumber(item.totalExperience)}</div>
                 </div>
               </div>
             ))}
           </div>
           <p style={{ marginTop: '16px', color: '#FFD700', fontWeight: 'bold' }}>
             🏆 达到500级后将不再升级，经验值不再增加
+          </p>
+          <p style={{ marginTop: '8px', color: '#64b5f6', fontSize: '0.9em' }}>
+            💡 提示：♾️ 表示数值过大，实际为无限大
           </p>
         </div>
       </div>

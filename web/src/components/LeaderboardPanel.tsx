@@ -22,7 +22,7 @@ const LeaderboardPanel: React.FC = () => {
               <div className="rank">#{index + 1}</div>
               <div className="player-info">
                 <div className="username">{entry.username}</div>
-                <div className="score">分数: <AnimatedNumber value={entry.score} duration={1000} formatFunction={formatNumber} keepDecimals={false} /></div>
+                <div className="score">经验值: <AnimatedNumber value={entry.score} duration={1000} formatFunction={formatNumber} keepDecimals={false} /></div>
               </div>
               <div className="date">{formatDate(entry.updated_at)}</div>
             </div>

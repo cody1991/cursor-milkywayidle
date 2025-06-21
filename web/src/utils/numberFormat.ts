@@ -12,13 +12,18 @@ const safeNumber = (value: any): number => {
   return 0
 }
 
+// 检查数值是否超过安全上限
+const isOverSafeLimit = (num: number): boolean => {
+  return num >= Number.MAX_SAFE_INTEGER || !isFinite(num) || isNaN(num)
+}
+
 // 数字格式化工具函数 - 使用numeral.js
 export const formatNumber = (num: any): string => {
   const safeNum = safeNumber(num)
 
-  // 检查是否为有效数字
-  if (!isFinite(safeNum) || isNaN(safeNum)) {
-    return '0'
+  // 检查是否超过JavaScript Number的安全上限
+  if (isOverSafeLimit(safeNum)) {
+    return '♾️'
   }
 
   // 使用numeral.js的格式化
@@ -29,9 +34,9 @@ export const formatNumber = (num: any): string => {
 export const formatExperience = (num: any): string => {
   const safeNum = safeNumber(num)
 
-  // 检查是否为有效数字
-  if (!isFinite(safeNum) || isNaN(safeNum)) {
-    return '0'
+  // 检查是否超过JavaScript Number的安全上限
+  if (isOverSafeLimit(safeNum)) {
+    return '♾️'
   }
 
   // 使用numeral.js的格式化，根据数字大小选择不同精度
@@ -45,9 +50,9 @@ export const formatExperience = (num: any): string => {
 export const formatLargeNumber = (num: any): string => {
   const safeNum = safeNumber(num)
 
-  // 检查是否为有效数字
-  if (!isFinite(safeNum) || isNaN(safeNum)) {
-    return '0'
+  // 检查是否超过JavaScript Number的安全上限
+  if (isOverSafeLimit(safeNum)) {
+    return '♾️'
   }
 
   // 使用numeral.js的格式化
