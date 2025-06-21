@@ -4,7 +4,7 @@ import AnimatedNumber from './AnimatedNumber'
 import { formatExperience } from '../utils/numberFormat'
 
 const ResourceDisplay: React.FC = () => {
-  const { resources, modules, units, startActivity, unitDefinitions, activities } = useGameStore()
+  const { resources, modules, units, startActivity, unitDefinitions, activities, isLoggedIn } = useGameStore()
 
   // 添加调试信息
   console.log('ResourceDisplay render - unitDefinitions:', unitDefinitions)
@@ -24,6 +24,19 @@ const ResourceDisplay: React.FC = () => {
 
   const [selectedSubModule, setSelectedSubModule] = useState<string>(getSavedModule)
   const [productionSettings, setProductionSettings] = useState<{ [key: string]: { times: number; infinite: boolean } }>({})
+
+  // 重置本地状态
+  const resetLocalState = () => {
+    setSelectedSubModule('cow')
+    setProductionSettings({})
+  }
+
+  // 监听登录状态变化，登出时重置本地状态
+  useEffect(() => {
+    if (!isLoggedIn) {
+      resetLocalState()
+    }
+  }, [isLoggedIn])
 
   // 保存选中的模块到localStorage
   const handleModuleChange = (moduleId: string) => {
@@ -66,12 +79,20 @@ const ResourceDisplay: React.FC = () => {
       return // 直接返回，不显示alert
     }
 
-    const setting = productionSettings[`${moduleId}.${unitId}`]
+    const unitKey = `${moduleId}.${unitId}`
+    let setting = productionSettings[unitKey]
+
+    // 如果没有设置，使用默认设置
     if (!setting) {
-      console.error('找不到生产设置')
-      return
+      setting = { times: 1, infinite: false }
+      // 更新本地状态
+      setProductionSettings(prev => ({
+        ...prev,
+        [unitKey]: setting
+      }))
     }
 
+    console.log('ResourceDisplay: setting:', setting)
     const times = setting.infinite ? -1 : setting.times
     console.log(`开始活动: ${moduleId}.${unitId}, 次数: ${times}`)
 

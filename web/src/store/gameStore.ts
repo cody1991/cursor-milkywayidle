@@ -220,8 +220,8 @@ export const useGameStore = create<GameState>()(
             reconnectAttempts: 0
           })
 
-          // 保存登录信息到本地存储
-          get().saveLoginInfo()
+          // 移除自动保存登录信息，让调用者决定是否保存
+          // get().saveLoginInfo()
 
           get().connectWebSocket()
 
@@ -242,8 +242,13 @@ export const useGameStore = create<GameState>()(
 
     logout: () => {
       get().disconnectWebSocket()
-      // 清除登录信息
+
+      // 清除所有localStorage项目
       get().clearLoginInfo()
+      localStorage.removeItem('galaxyCowIdle_activeTab')
+      localStorage.removeItem('galaxyCowIdle_selectedModule')
+
+      // 重置所有状态
       set({
         userId: '',
         username: '',
@@ -678,6 +683,10 @@ export const useGameStore = create<GameState>()(
     loadLoginInfo: () => {
       try {
         const savedLogin = localStorage.getItem('galaxyCowIdle_login')
+
+        console.log('loadLoginInfo called')
+        console.log('savedLogin:', savedLogin)
+
         if (savedLogin) {
           const loginInfo = JSON.parse(savedLogin)
           const now = Date.now()

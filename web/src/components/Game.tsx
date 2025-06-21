@@ -76,7 +76,22 @@ const Game: React.FC = () => {
   // 监听登录状态变化
   useEffect(() => {
     setShowLoginModal(!isLoggedIn)
+    // 登出时重置activeTab状态
+    if (!isLoggedIn) {
+      setActiveTab('resources')
+    }
   }, [isLoggedIn])
+
+  // 组件挂载时自动加载登录信息
+  useEffect(() => {
+    console.log('Game组件挂载，尝试加载登录信息...')
+    const loginSuccess = loadLoginInfo()
+    if (loginSuccess) {
+      console.log('成功从localStorage恢复登录状态')
+    } else {
+      console.log('localStorage中没有有效的登录信息')
+    }
+  }, [loadLoginInfo])
 
   // 游戏循环
   useEffect(() => {
