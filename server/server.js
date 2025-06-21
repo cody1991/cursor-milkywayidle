@@ -319,7 +319,7 @@ async function handleFetchLeaderboard(ws) {
       FROM leaderboard l 
       JOIN users u ON l.user_id = u.id 
       ORDER BY l.score DESC 
-      LIMIT 10
+      LIMIT 100
     `);
 
     console.log(`排行榜数据: ${rows.length} 条记录`);
@@ -1122,7 +1122,8 @@ async function initializeUserState(userId) {
         const { module_id, unit_id } = unitDef;
         const isDefaultUnit =
           (module_id === 'cow' && unit_id === 'normalCow') ||
-          (module_id === 'harvest' && unit_id === 'spaceBerry');
+          (module_id === 'harvest' && unit_id === 'spaceBerry') ||
+          (module_id === 'wood' && unit_id === 'normalTree');
 
         await pool.query(
           'INSERT INTO user_units (user_id, module_id, unit_id, owned, unlocked, produced) VALUES (?, ?, ?, ?, ?, ?)',
