@@ -2090,3 +2090,125 @@ body {
     max-width: 120px;
   }
 }
+
+/* 浮动活动面板样式 */
+.floating-activities {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  min-width: 280px;
+}
+
+.floating-activities-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #333;
+}
+
+.floating-activities-header h3 {
+  margin: 0;
+  color: #64b5f6;
+  font-size: 16px;
+}
+
+.activity-count {
+  background: rgba(100, 181, 246, 0.2);
+  color: #64b5f6;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.floating-activities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.no-activities-message {
+  text-align: center;
+  color: #888;
+  padding: 20px 0;
+}
+
+.no-activities-message p {
+  margin: 0;
+}
+
+.floating-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(40, 40, 60, 0.8);
+  border-radius: 6px;
+  border: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.floating-activity-info {
+  flex: 1;
+}
+
+.floating-activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.floating-activity-name {
+  font-size: 12px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.floating-activity-time {
+  font-size: 11px;
+  color: #b0bec5;
+}
+
+.floating-activity-progress {
+  margin-top: 4px;
+}
+
+.floating-activity-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(100, 150, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.floating-activity-progress-bar .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4caf50, #66bb6a);
+  transition: width 0.3s ease;
+}
+
+.floating-stop-activity-button {
+  padding: 4px 8px;
+  background: linear-gradient(45deg, #f44336, #e53935);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.floating-stop-activity-button:hover {
+  background: linear-gradient(45deg, #e53935, #d32f2f);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
