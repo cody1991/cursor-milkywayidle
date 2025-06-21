@@ -62,7 +62,6 @@ const Game: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'resources' | 'achievements' | 'leaderboard' | 'chat' | 'help'>(getSavedTab)
   const [showLoginModal, setShowLoginModal] = useState(!isLoggedIn)
-  const [isLoading, setIsLoading] = useState(true)
 
   // 保存选中的主标签页到localStorage
   const handleTabChange = (tab: 'resources' | 'achievements' | 'leaderboard' | 'chat' | 'help') => {
@@ -74,22 +73,10 @@ const Game: React.FC = () => {
     }
   }
 
-  // 尝试恢复登录状态
+  // 监听登录状态变化
   useEffect(() => {
-    const tryRestoreLogin = () => {
-      const restored = loadLoginInfo()
-      if (restored) {
-        console.log('登录状态已恢复')
-        setShowLoginModal(false)
-      } else {
-        console.log('没有找到有效的登录信息')
-        setShowLoginModal(true)
-      }
-      setIsLoading(false)
-    }
-
-    tryRestoreLogin()
-  }, [loadLoginInfo])
+    setShowLoginModal(!isLoggedIn)
+  }, [isLoggedIn])
 
   // 游戏循环
   useEffect(() => {
@@ -131,15 +118,6 @@ const Game: React.FC = () => {
   const handleLogout = () => {
     logout()
     setShowLoginModal(true)
-  }
-
-  // 如果正在加载，显示加载状态
-  if (isLoading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner">加载中...</div>
-      </div>
-    )
   }
 
   if (!isLoggedIn) {

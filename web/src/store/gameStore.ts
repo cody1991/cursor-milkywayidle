@@ -97,7 +97,7 @@ export interface GameState {
   unitDefinitions: UnitDefinition[]
   historicalScore: number // 历史累计分数
 
-  login: (username: string) => Promise<void>
+  login: (username: string, password: string) => Promise<void>
   logout: () => void
   connectWebSocket: () => void
   disconnectWebSocket: () => void
@@ -196,17 +196,14 @@ export const useGameStore = create<GameState>()(
     unitDefinitions: [],
     historicalScore: 0,
 
-    login: async (username: string) => {
-      if (!username.trim()) return
-
-      // 使用用户名生成更一致的用户ID
-      const tempUserId = `user_${username}_${Date.now()}`
+    login: async (username: string, password: string) => {
+      if (!username.trim() || !password.trim()) return
 
       try {
         const response = await fetch('/api/user/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: tempUserId, username })
+          body: JSON.stringify({ username, password })
         })
 
         if (response.ok) {
@@ -233,9 +230,13 @@ export const useGameStore = create<GameState>()(
           } else {
             console.log(`用户 ${username} 登录成功`)
           }
+        } else {
+          const errorData = await response.json()
+          throw new Error(errorData.error || '登录失败')
         }
       } catch (error) {
         console.error('登录失败:', error)
+        throw error
       }
     },
 

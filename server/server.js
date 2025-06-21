@@ -398,6 +398,80 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: '银河奶牛放置服务器正在运行' });
 });
 
+// 用户注册/登录
+app.post('/api/user/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    // 验证输入
+    if (!username || !password) {
+      return res.status(400).json({
+        error: '用户名和密码不能为空',
+      });
+    }
+
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({
+        error: '用户名长度必须在3-20个字符之间',
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: '密码长度至少6个字符',
+      });
+    }
+
+    // 先检查用户名是否已存在
+    const [existingUser] = await pool.query(
+      'SELECT id, username, password FROM users WHERE username = ?',
+      [username],
+    );
+
+    let actualUserId;
+    let isNewUser = false;
+
+    if (existingUser.length > 0) {
+      // 用户名已存在，验证密码
+      const isValidPassword = await bcrypt.compare(
+        password,
+        existingUser[0].password,
+      );
+
+      if (!isValidPassword) {
+        return res.status(401).json({
+          error: '密码错误',
+        });
+      }
+
+      actualUserId = existingUser[0].id;
+      console.log(`用户 ${username} 登录成功，ID: ${actualUserId}`);
+    } else {
+      // 用户名不存在，创建新用户
+      const hashedPassword = await bcrypt.hash(password, 10);
+      actualUserId = `user_${username}_${Date.now()}`;
+
+      await pool.query(
+        'INSERT INTO users (id, username, password) VALUES (?, ?, ?)',
+        [actualUserId, username, hashedPassword],
+      );
+
+      isNewUser = true;
+      console.log(`新用户 ${username} 注册成功，ID: ${actualUserId}`);
+    }
+
+    res.json({
+      success: true,
+      userId: actualUserId,
+      username,
+      isNewUser,
+    });
+  } catch (error) {
+    console.error('用户注册错误:', error);
+    res.status(500).json({ error: '注册失败' });
+  }
+});
+
 // 游戏数据API
 app.get('/api/game-data', (req, res) => {
   res.json({
