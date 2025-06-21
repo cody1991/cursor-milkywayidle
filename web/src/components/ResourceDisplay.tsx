@@ -94,26 +94,7 @@ const ResourceDisplay: React.FC = () => {
   }
 
   const getUnitStyle = (moduleId: string, unitId: string) => {
-    if (!unitDefinitions || unitDefinitions.length === 0) {
-      return 'unit-basic'
-    }
-
-    const unit = unitDefinitions.find((u: any) => u.moduleId === moduleId && u.unitId === unitId)
-    if (!unit) return 'unit-basic'
-
-    // 根据稀有度返回样式
-    switch (unit.rarity) {
-      case 'basic':
-        return 'unit-basic'
-      case 'advanced':
-        return 'unit-advanced'
-      case 'rare':
-        return 'unit-rare'
-      case 'legendary':
-        return 'unit-legendary'
-      default:
-        return 'unit-basic'
-    }
+    return 'unit-basic'
   }
 
   const getUnitInfo = (moduleId: string, unitId: string) => {
@@ -130,7 +111,6 @@ const ResourceDisplay: React.FC = () => {
       baseProduction: unit.baseProduction,
       actionTime: unit.actionTime,
       requiredLevel: unit.requiredLevel,
-      rarity: unit.rarity,
       description: unit.description
     }
   }
@@ -194,23 +174,25 @@ const ResourceDisplay: React.FC = () => {
             <div className="module-header">
               <h3>{moduleNames[selectedSubModule]}</h3>
               <div className="module-level">
-                <span>等级 <AnimatedNumber value={module.currentLevel} duration={800} /></span>
-                {module.currentLevel >= 999 ? (
+                {module.currentLevel >= 500 ? (
                   <div className="max-level-info">
                     <span style={{ color: '#FFD700', fontWeight: 'bold' }}>🏆 已达到最高等级</span>
                   </div>
                 ) : (
-                  <>
+                  <div className="level-info">
+                    <span>等级 <AnimatedNumber value={module.currentLevel} duration={800} /></span>
                     <div className="experience-bar">
                       <div
                         className="experience-fill"
-                        style={{ width: `${(module.experience / module.levelExperience) * 100}%` }}
+                        style={{
+                          width: `${(module.experience / module.levelExperience) * 100}%`
+                        }}
                       />
                     </div>
-                    <span>
-                      {formatExperience(module.experience)}/{formatExperience(module.levelExperience)}
+                    <span className="experience-text">
+                      {module.experience} / {module.levelExperience}
                     </span>
-                  </>
+                  </div>
                 )}
               </div>
             </div>
@@ -250,52 +232,55 @@ const ResourceDisplay: React.FC = () => {
                         <span>生产时间:</span>
                         <span>{unitInfo.actionTime / 1000}秒</span>
                       </p>
-                      {!canUse && (
-                        <div className="requirement">
-                          {unit && !unit.unlocked ? '未解锁' : `需要等级 ${unitInfo.requiredLevel}`}
-                        </div>
-                      )}
-                      {canUse && (
-                        <div className="production-controls">
-                          <div className="production-settings">
-                            <div className="times-input">
-                              <label>生产次数:</label>
+
+                      <div className="production-controls">
+                        <div className="production-settings">
+                          <div className="times-input">
+                            <label>生产次数:</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="999"
+                              value={productionSettings[`${selectedSubModule}.${unitId}`]?.times || 1}
+                              onChange={(e) => updateProductionSetting(
+                                `${selectedSubModule}.${unitId}`,
+                                'times',
+                                parseInt(e.target.value) || 1
+                              )}
+                              disabled={productionSettings[`${selectedSubModule}.${unitId}`]?.infinite}
+                            />
+                          </div>
+                          <div className="infinite-checkbox">
+                            <label>
                               <input
-                                type="number"
-                                min="1"
-                                max="999"
-                                value={productionSettings[`${selectedSubModule}.${unitId}`]?.times || 1}
+                                type="checkbox"
+                                checked={productionSettings[`${selectedSubModule}.${unitId}`]?.infinite || false}
                                 onChange={(e) => updateProductionSetting(
                                   `${selectedSubModule}.${unitId}`,
-                                  'times',
-                                  parseInt(e.target.value) || 1
+                                  'infinite',
+                                  e.target.checked
                                 )}
-                                disabled={productionSettings[`${selectedSubModule}.${unitId}`]?.infinite}
                               />
-                            </div>
-                            <div className="infinite-checkbox">
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  checked={productionSettings[`${selectedSubModule}.${unitId}`]?.infinite || false}
-                                  onChange={(e) => updateProductionSetting(
-                                    `${selectedSubModule}.${unitId}`,
-                                    'infinite',
-                                    e.target.checked
-                                  )}
-                                />
-                                无限次
-                              </label>
-                            </div>
+                              无限次
+                            </label>
                           </div>
+                        </div>
+                        {/* 开始生产按钮 */}
+                        {canUse && (
                           <button
                             className="start-activity-btn"
                             onClick={() => handleStartActivity(selectedSubModule, unitId)}
                           >
                             {productionSettings[`${selectedSubModule}.${unitId}`]?.infinite ? '开始无限生产' : '开始生产'}
                           </button>
-                        </div>
-                      )}
+                        )}
+
+                        {!canUse && (
+                          <div className="requirement" >
+                            {unit && !unit.unlocked ? '未解锁' : `需要等级 ${unitInfo.requiredLevel}`}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )

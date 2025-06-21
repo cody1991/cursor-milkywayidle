@@ -72,7 +72,6 @@ export interface UnitDefinition {
   baseProduction: number
   actionTime: number
   requiredLevel: number
-  rarity: string
   description: string
 }
 
@@ -403,18 +402,31 @@ export const useGameStore = create<GameState>()(
           break
 
         case 'chat':
-          set((state) => ({
-            chatMessages: [...state.chatMessages, {
+          set((state) => {
+            const newMessages = [...state.chatMessages, {
               userId: data.userId,
               username: data.username,
               message: data.message,
               timestamp: data.timestamp
-            }]
-          }))
+            }];
+
+            // 限制最多100条消息
+            if (newMessages.length > 100) {
+              return {
+                chatMessages: newMessages.slice(-100)
+              };
+            }
+
+            return {
+              chatMessages: newMessages
+            };
+          })
           break
 
         case 'chat_history':
-          set({ chatMessages: data.data })
+          // 确保聊天历史也限制在100条以内
+          const limitedHistory = data.data.length > 100 ? data.data.slice(-100) : data.data;
+          set({ chatMessages: limitedHistory })
           break
 
         case 'user_state_update':

@@ -30,36 +30,6 @@ const HelpPanel: React.FC = () => {
     harvest: '🌿 采摘园'
   }
 
-  const getRarityColor = (rarity: string) => {
-    switch (rarity) {
-      case 'basic':
-        return '#666666'
-      case 'advanced':
-        return '#4CAF50'
-      case 'rare':
-        return '#2196F3'
-      case 'legendary':
-        return '#9C27B0'
-      default:
-        return '#666666'
-    }
-  }
-
-  const getRarityName = (rarity: string) => {
-    switch (rarity) {
-      case 'basic':
-        return '基础'
-      case 'advanced':
-        return '高级'
-      case 'rare':
-        return '稀有'
-      case 'legendary':
-        return '传说'
-      default:
-        return '基础'
-    }
-  }
-
   // 生成等级经验表数据
   const generateLevelData = () => {
     const data = [];
@@ -127,12 +97,6 @@ const HelpPanel: React.FC = () => {
                   <div key={unit.unitId} className="unit-info-card">
                     <div className="unit-header">
                       <span className="unit-name">{unit.name}</span>
-                      <span
-                        className="unit-rarity"
-                        style={{ color: getRarityColor(unit.rarity) }}
-                      >
-                        {getRarityName(unit.rarity)}
-                      </span>
                     </div>
                     <div className="unit-details">
                       <div className="unit-stat">

@@ -147,7 +147,6 @@ async function initData() {
           base_production INT DEFAULT 1,
           action_time INT NOT NULL,
           required_level INT DEFAULT 1,
-          rarity VARCHAR(16) DEFAULT 'basic',
           description TEXT,
           PRIMARY KEY (module_id, unit_id)
         )
@@ -171,7 +170,6 @@ async function initData() {
         base_production: 1,
         action_time: 3000,
         required_level: 1,
-        rarity: 'basic',
         description: '基础的奶牛，可以挤奶',
       },
       {
@@ -181,7 +179,6 @@ async function initData() {
         base_production: 1,
         action_time: 4000,
         required_level: 2,
-        rarity: 'advanced',
         description: '更高级的奶牛，产奶量更高',
       },
       {
@@ -191,7 +188,6 @@ async function initData() {
         base_production: 1,
         action_time: 5000,
         required_level: 3,
-        rarity: 'advanced',
         description: '稀有奶牛，产奶量很高',
       },
       {
@@ -201,7 +197,6 @@ async function initData() {
         base_production: 1,
         action_time: 6000,
         required_level: 4,
-        rarity: 'rare',
         description: '传说奶牛，产奶量极高',
       },
       {
@@ -211,7 +206,6 @@ async function initData() {
         base_production: 1,
         action_time: 7000,
         required_level: 5,
-        rarity: 'rare',
         description: '史诗奶牛，产奶量惊人',
       },
       {
@@ -221,7 +215,6 @@ async function initData() {
         base_production: 1,
         action_time: 8000,
         required_level: 6,
-        rarity: 'legendary',
         description: '神话奶牛，产奶量超群',
       },
       {
@@ -231,7 +224,6 @@ async function initData() {
         base_production: 1,
         action_time: 10000,
         required_level: 7,
-        rarity: 'legendary',
         description: '神圣奶牛，产奶量无与伦比',
       },
       {
@@ -241,7 +233,6 @@ async function initData() {
         base_production: 1,
         action_time: 4000,
         required_level: 1,
-        rarity: 'basic',
         description: '基础的树，可以伐木',
       },
       {
@@ -251,7 +242,6 @@ async function initData() {
         base_production: 1,
         action_time: 5000,
         required_level: 2,
-        rarity: 'advanced',
         description: '更高级的树，木材质量更好',
       },
       {
@@ -261,7 +251,6 @@ async function initData() {
         base_production: 1,
         action_time: 6000,
         required_level: 3,
-        rarity: 'advanced',
         description: '稀有树木，木材质量很高',
       },
       {
@@ -271,7 +260,6 @@ async function initData() {
         base_production: 1,
         action_time: 7000,
         required_level: 4,
-        rarity: 'rare',
         description: '传说树木，木材质量极高',
       },
       {
@@ -281,7 +269,6 @@ async function initData() {
         base_production: 1,
         action_time: 8000,
         required_level: 5,
-        rarity: 'rare',
         description: '史诗树木，木材质量惊人',
       },
       {
@@ -291,7 +278,6 @@ async function initData() {
         base_production: 1,
         action_time: 9000,
         required_level: 6,
-        rarity: 'legendary',
         description: '神话树木，木材质量超群',
       },
       {
@@ -301,7 +287,6 @@ async function initData() {
         base_production: 1,
         action_time: 12000,
         required_level: 7,
-        rarity: 'legendary',
         description: '奥秘树木，木材质量无与伦比',
       },
       {
@@ -311,7 +296,6 @@ async function initData() {
         base_production: 1,
         action_time: 2500,
         required_level: 1,
-        rarity: 'basic',
         description: '基础的太空莓，可以采摘',
       },
       {
@@ -321,7 +305,6 @@ async function initData() {
         base_production: 1,
         action_time: 3500,
         required_level: 2,
-        rarity: 'advanced',
         description: '更高级的水果，营养价值更高',
       },
       {
@@ -331,7 +314,6 @@ async function initData() {
         base_production: 1,
         action_time: 4500,
         required_level: 3,
-        rarity: 'advanced',
         description: '稀有咖啡豆，品质很高',
       },
       {
@@ -341,7 +323,6 @@ async function initData() {
         base_production: 1,
         action_time: 6000,
         required_level: 4,
-        rarity: 'rare',
         description: '传说纤维，品质无与伦比',
       },
     ];
@@ -349,7 +330,7 @@ async function initData() {
     console.log('正在初始化单位定义数据...');
     for (const unit of unitDefinitions) {
       await pool.query(
-        'INSERT IGNORE INTO unit_definitions (module_id, unit_id, name, base_production, action_time, required_level, rarity, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT IGNORE INTO unit_definitions (module_id, unit_id, name, base_production, action_time, required_level, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
           unit.module_id,
           unit.unit_id,
@@ -357,7 +338,6 @@ async function initData() {
           unit.base_production,
           unit.action_time,
           unit.required_level,
-          unit.rarity,
           unit.description,
         ],
       );

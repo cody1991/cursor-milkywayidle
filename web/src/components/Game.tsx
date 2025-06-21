@@ -120,11 +120,9 @@ const Game: React.FC = () => {
 
   return (
     <div className="game-container">
-      <div className="game-header">
-        <h1>🐄 银河奶牛农场</h1>
-        <p>在银河系中建立你的奶牛农场帝国</p>
-
-        {/* 资源显示 */}
+      {/* 顶部区域 */}
+      <div className="game-top-section">
+        {/* 左侧资源显示 */}
         <div className="resources-display">
           <div className="resource-item">
             <span className="resource-icon">🥛</span>
@@ -143,8 +141,9 @@ const Game: React.FC = () => {
           </div>
         </div>
 
-        <div className="user-info">
-          <span>欢迎，{username}！</span>
+        {/* 右侧用户信息 */}
+        <div className="user-info-section">
+          <span className="username">欢迎，{username}！</span>
           <button className="logout-button" onClick={handleLogout}>
             退出登录
           </button>

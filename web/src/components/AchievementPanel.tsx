@@ -53,7 +53,6 @@ const AchievementPanel: React.FC = () => {
       baseProduction: unit.baseProduction,
       actionTime: unit.actionTime,
       requiredLevel: unit.requiredLevel,
-      rarity: unit.rarity,
       description: unit.description
     }
   }

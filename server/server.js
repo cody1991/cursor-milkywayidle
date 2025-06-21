@@ -297,7 +297,7 @@ async function handleFetchChatHistory(ws) {
       SELECT user_id, username, message, sent_at as timestamp
       FROM chat_messages 
       ORDER BY sent_at DESC 
-      LIMIT 50
+      LIMIT 100
     `);
 
     ws.send(
@@ -397,12 +397,40 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
+// 定期清理旧聊天消息（保留最近1000条）
+async function cleanupOldChatMessages() {
+  try {
+    const [result] = await pool.query(`
+      DELETE FROM chat_messages 
+      WHERE id NOT IN (
+        SELECT id FROM (
+          SELECT id FROM chat_messages 
+          ORDER BY sent_at DESC 
+          LIMIT 1000
+        ) AS recent_messages
+      )
+    `);
+
+    if (result.affectedRows > 0) {
+      console.log(`清理了 ${result.affectedRows} 条旧聊天消息`);
+    }
+  } catch (error) {
+    console.error('清理旧聊天消息错误:', error);
+  }
+}
+
 // 启动服务器
 server.listen(PORT, () => {
   console.log(`🐄 银河奶牛放置服务器运行在端口 ${PORT}`);
   console.log(`📊 健康检查: http://localhost:${PORT}/api/health`);
   console.log(`🎮 游戏: http://localhost:${PORT}`);
   console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
+
+  // 每小时清理一次旧消息
+  setInterval(cleanupOldChatMessages, 60 * 60 * 1000);
+
+  // 启动时立即清理一次
+  cleanupOldChatMessages();
 });
 
 // 处理开始活动
@@ -948,7 +976,6 @@ async function getAllUnitDefinitions() {
       baseProduction: unit.base_production,
       actionTime: unit.action_time,
       requiredLevel: unit.required_level,
-      rarity: unit.rarity,
       description: unit.description,
     }));
 
