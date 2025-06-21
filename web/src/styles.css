@@ -600,14 +600,21 @@ body {
 }
 
 .start-activity-btn:hover {
-  background: linear-gradient(45deg, #66bb6a, #81c784);
+  background: linear-gradient(45deg, #66bb6a, #4caf50);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
 }
 
-.start-activity-btn:disabled {
-  background: #546e7a;
+.start-activity-btn.disabled {
+  background: linear-gradient(45deg, #666, #555);
+  color: #999;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.start-activity-btn.disabled:hover {
+  background: linear-gradient(45deg, #666, #555);
   transform: none;
   box-shadow: none;
 }
@@ -2243,4 +2250,33 @@ body {
   background: linear-gradient(45deg, #e53935, #d32f2f);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+/* 等级要求样式 */
+.level-requirement {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.level-requirement.met {
+  background: rgba(76, 175, 80, 0.1);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.level-requirement.not-met {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.level-requirement.neutral {
+  background: rgba(255, 152, 0, 0.1);
+  color: #ff9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
 }

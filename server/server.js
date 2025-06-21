@@ -484,6 +484,28 @@ server.listen(PORT, () => {
 // 处理开始活动
 async function handleStartActivity(userId, moduleId, unitId, times) {
   try {
+    // 检查用户当前活跃活动数量，限制最多5个
+    const [currentActivities] = await pool.query(
+      'SELECT COUNT(*) as count FROM production_activities WHERE user_id = ? AND is_active = TRUE',
+      [userId],
+    );
+
+    if (currentActivities[0].count >= 5) {
+      console.log(`用户 ${userId} 尝试创建第6个活动，但已达到最大限制(5个)`);
+
+      // 发送错误消息给客户端
+      const client = clients.get(userId);
+      if (client && client.readyState === WebSocket.OPEN) {
+        client.send(
+          JSON.stringify({
+            type: 'activity_error',
+            message: '已达到最大活动数量限制(5个)，请先停止一些活动',
+          }),
+        );
+      }
+      return;
+    }
+
     // 检查用户是否有权限进行此活动
     const [userModule] = await pool.query(
       'SELECT * FROM user_modules WHERE user_id = ? AND module_id = ?',
@@ -535,7 +557,7 @@ async function handleStartActivity(userId, moduleId, unitId, times) {
     console.log(
       `用户 ${userId} 开始活动: ${unitInfo.name} x${
         times === -1 ? '无限' : times
-      }`,
+      } (当前活动数: ${currentActivities[0].count + 1}/5)`,
     );
 
     // 发送活动开始确认
@@ -625,15 +647,11 @@ async function handleUpdateActivities(userId) {
         await addUserScore(userId, scoreToAdd);
 
         // 累计单位生产数量和拥有数量
-        await pool.query(
-          'UPDATE user_units SET produced = produced + ?, owned = owned + ? WHERE user_id = ? AND module_id = ? AND unit_id = ?',
-          [
-            totalProduction,
-            totalProduction,
-            userId,
-            activity.module_id,
-            activity.unit_id,
-          ],
+        await addUserUnitProduction(
+          userId,
+          activity.module_id,
+          activity.unit_id,
+          totalProduction,
         );
 
         // 标记活动为完成
@@ -693,15 +711,11 @@ async function handleUpdateActivities(userId) {
           await addUserScore(userId, scoreToAdd);
 
           // 累计单位生产数量和拥有数量
-          await pool.query(
-            'UPDATE user_units SET produced = produced + ?, owned = owned + ? WHERE user_id = ? AND module_id = ? AND unit_id = ?',
-            [
-              totalProduction,
-              totalProduction,
-              userId,
-              activity.module_id,
-              activity.unit_id,
-            ],
+          await addUserUnitProduction(
+            userId,
+            activity.module_id,
+            activity.unit_id,
+            totalProduction,
           );
 
           console.log(
@@ -774,20 +788,89 @@ function getResourceName(moduleId) {
 }
 
 async function addUserResource(userId, resourceName, amount) {
-  await pool.query(
-    'INSERT INTO user_resources (user_id, resource_name, amount) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE amount = amount + ?',
-    [userId, resourceName, amount, amount],
-  );
+  try {
+    // 使用事务确保原子性
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 先获取当前资源数量
+      const [currentResource] = await connection.query(
+        'SELECT amount, max_amount FROM user_resources WHERE user_id = ? AND resource_name = ?',
+        [userId, resourceName],
+      );
+
+      let newAmount;
+      if (currentResource.length === 0) {
+        // 用户还没有该资源记录，创建新记录
+        newAmount = Math.min(amount, 1000); // 默认最大数量
+        await connection.query(
+          'INSERT INTO user_resources (user_id, resource_name, amount, max_amount) VALUES (?, ?, ?, ?)',
+          [userId, resourceName, newAmount, 1000],
+        );
+      } else {
+        // 用户已有该资源记录，原子性累加
+        const maxAmount = currentResource[0].max_amount;
+        newAmount = Math.min(currentResource[0].amount + amount, maxAmount);
+        await connection.query(
+          'UPDATE user_resources SET amount = ? WHERE user_id = ? AND resource_name = ?',
+          [newAmount, userId, resourceName],
+        );
+      }
+
+      await connection.commit();
+      console.log(
+        `用户 ${userId} 资源 ${resourceName} 增加 ${amount}，新数量: ${newAmount}`,
+      );
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('增加用户分数错误:', error);
+  }
 }
 
 async function addUserScore(userId, score) {
   try {
-    // 更新排行榜中的分数
-    await pool.query(
-      'INSERT INTO leaderboard (user_id, score) VALUES (?, ?) ON DUPLICATE KEY UPDATE score = score + ?',
-      [userId, score, score],
-    );
-    console.log(`用户 ${userId} 分数增加 ${score}`);
+    // 使用事务确保原子性
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 先获取当前分数
+      const [currentScore] = await connection.query(
+        'SELECT score FROM leaderboard WHERE user_id = ?',
+        [userId],
+      );
+
+      let newScore;
+      if (currentScore.length === 0) {
+        // 用户还没有分数记录，创建新记录
+        newScore = score;
+        await connection.query(
+          'INSERT INTO leaderboard (user_id, score) VALUES (?, ?)',
+          [userId, newScore],
+        );
+      } else {
+        // 用户已有分数记录，原子性累加
+        newScore = currentScore[0].score + score;
+        await connection.query(
+          'UPDATE leaderboard SET score = ? WHERE user_id = ?',
+          [newScore, userId],
+        );
+      }
+
+      await connection.commit();
+      console.log(`用户 ${userId} 分数增加 ${score}，新总分: ${newScore}`);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('增加用户分数错误:', error);
   }
@@ -819,29 +902,52 @@ function calculateLevelFromExperience(experience) {
 }
 
 async function addModuleExperience(userId, moduleId, experience) {
-  const [userModule] = await pool.query(
-    'SELECT experience FROM user_modules WHERE user_id = ? AND module_id = ?',
-    [userId, moduleId],
-  );
+  try {
+    // 使用事务确保原子性
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
 
-  if (userModule.length === 0) {
-    await pool.query(
-      'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
-      [userId, moduleId, experience],
-    );
-  } else {
-    const newExperience = userModule[0].experience + experience;
+    try {
+      const [userModule] = await connection.query(
+        'SELECT experience FROM user_modules WHERE user_id = ? AND module_id = ?',
+        [userId, moduleId],
+      );
 
-    // 计算新的等级信息
-    const levelInfo = calculateLevelFromExperience(newExperience);
+      let newExperience;
+      if (userModule.length === 0) {
+        // 用户还没有该模块记录，创建新记录
+        newExperience = experience;
+        await connection.query(
+          'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
+          [userId, moduleId, newExperience],
+        );
+      } else {
+        // 用户已有该模块记录，原子性累加
+        newExperience = userModule[0].experience + experience;
+        await connection.query(
+          'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
+          [newExperience, userId, moduleId],
+        );
+      }
 
-    // 解锁相应等级的单位
-    await unlockUnitsByLevel(userId, moduleId, levelInfo.level);
+      // 计算新的等级信息
+      const levelInfo = calculateLevelFromExperience(newExperience);
 
-    await pool.query(
-      'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
-      [newExperience, userId, moduleId],
-    );
+      // 解锁相应等级的单位
+      await unlockUnitsByLevel(userId, moduleId, levelInfo.level);
+
+      await connection.commit();
+      console.log(
+        `用户 ${userId} 模块 ${moduleId} 经验增加 ${experience}，新经验: ${newExperience}，新等级: ${levelInfo.level}`,
+      );
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('增加模块经验错误:', error);
   }
 }
 
@@ -1142,5 +1248,57 @@ async function syncExperience(userId, units, unitDefinitions) {
     await sendUserState(userId);
   } catch (error) {
     console.error('同步经验值错误:', error);
+  }
+}
+
+async function addUserUnitProduction(
+  userId,
+  moduleId,
+  unitId,
+  productionAmount,
+) {
+  try {
+    // 使用事务确保原子性
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // 先获取当前单位状态
+      const [currentUnit] = await connection.query(
+        'SELECT owned, produced FROM user_units WHERE user_id = ? AND module_id = ? AND unit_id = ?',
+        [userId, moduleId, unitId],
+      );
+
+      let newOwned, newProduced;
+      if (currentUnit.length === 0) {
+        // 用户还没有该单位记录，创建新记录
+        newOwned = productionAmount;
+        newProduced = productionAmount;
+        await connection.query(
+          'INSERT INTO user_units (user_id, module_id, unit_id, owned, produced, unlocked) VALUES (?, ?, ?, ?, ?, TRUE)',
+          [userId, moduleId, unitId, newOwned, newProduced],
+        );
+      } else {
+        // 用户已有该单位记录，原子性累加
+        newOwned = currentUnit[0].owned + productionAmount;
+        newProduced = currentUnit[0].produced + productionAmount;
+        await connection.query(
+          'UPDATE user_units SET owned = ?, produced = ? WHERE user_id = ? AND module_id = ? AND unit_id = ?',
+          [newOwned, newProduced, userId, moduleId, unitId],
+        );
+      }
+
+      await connection.commit();
+      console.log(
+        `用户 ${userId} 单位 ${moduleId}.${unitId} 生产数量增加 ${productionAmount}，新拥有: ${newOwned}，新生产: ${newProduced}`,
+      );
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('增加单位生产数量错误:', error);
   }
 }

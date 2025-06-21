@@ -458,6 +458,12 @@ export const useGameStore = create<GameState>()(
           console.log(`活动停止: ${data.activityId}`)
           break
 
+        case 'activity_error':
+          console.error(`活动错误: ${data.message}`)
+          // 可以在这里添加用户提示，比如显示一个通知
+          alert(`活动创建失败: ${data.message}`)
+          break
+
         case 'unit_definitions':
           console.log('收到单位定义数据:', data.data)
           set({ unitDefinitions: data.data })

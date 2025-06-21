@@ -4,7 +4,7 @@ import AnimatedNumber from './AnimatedNumber'
 import { formatExperience } from '../utils/numberFormat'
 
 const ResourceDisplay: React.FC = () => {
-  const { resources, modules, units, startActivity, unitDefinitions } = useGameStore()
+  const { resources, modules, units, startActivity, unitDefinitions, activities } = useGameStore()
 
   // 添加调试信息
   console.log('ResourceDisplay render - unitDefinitions:', unitDefinitions)
@@ -237,6 +237,13 @@ const ResourceDisplay: React.FC = () => {
                         <span>生产时间:</span>
                         <span>{unitInfo.actionTime / 1000}秒</span>
                       </p>
+                      <p>
+                        <span style={{ color: '#ff9800', fontWeight: 500 }}>需要等级:</span>
+                        <span className={`level-requirement ${module.currentLevel >= unitInfo.requiredLevel ? 'met' : 'not-met'}`}>
+                          {unitInfo.requiredLevel}
+                          {module.currentLevel >= unitInfo.requiredLevel && ' ✓'}
+                        </span>
+                      </p>
 
                       <div className="production-controls">
                         <div className="production-settings">
@@ -273,16 +280,32 @@ const ResourceDisplay: React.FC = () => {
                         {/* 开始生产按钮 */}
                         {canUse && (
                           <button
-                            className="start-activity-btn"
+                            className={`start-activity-btn ${activities.length >= 5 ? 'disabled' : ''}`}
                             onClick={() => handleStartActivity(selectedSubModule, unitId)}
+                            disabled={activities.length >= 5}
+                            title={activities.length >= 5 ? '已达到最大活动数量限制(5个)' : ''}
                           >
-                            {productionSettings[`${selectedSubModule}.${unitId}`]?.infinite ? '开始无限生产' : '开始生产'}
+                            {activities.length >= 5 ? '活动数量已达上限' : (
+                              productionSettings[`${selectedSubModule}.${unitId}`]?.infinite ? '开始无限生产' : '开始生产'
+                            )}
                           </button>
                         )}
 
                         {!canUse && (
                           <div className="requirement" >
-                            {unit && !unit.unlocked ? '未解锁' : `需要等级 ${unitInfo.requiredLevel}`}
+                            {unit && !unit.unlocked ? (
+                              <span style={{ color: '#9e9e9e' }}>🔒 未解锁</span>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span>🔒 需要等级</span>
+                                <span className="level-requirement not-met">
+                                  {unitInfo.requiredLevel}
+                                </span>
+                                <span style={{ color: '#b0bec5', fontSize: '0.9em' }}>
+                                  (当前: {module.currentLevel})
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

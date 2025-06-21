@@ -162,6 +162,7 @@ const FloatingActivities: React.FC = () => {
           <h3>🔄 当前活动</h3>
           <span className="activity-count">
             <AnimatedNumber value={activeActivities.length} duration={400} keepDecimals={false} />
+            <span style={{ fontSize: '10px', marginLeft: '4px' }}>/5</span>
           </span>
         </div>
         <div className="floating-activities-list">
