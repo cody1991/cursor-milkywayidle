@@ -12,9 +12,11 @@ async function initDatabase() {
 
     // 首先连接到MySQL服务器（不指定数据库）
     connection = await mysql.createConnection({
-      host: 'localhost',
-      user: 'root',
-      password: 'cody1991',
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'milkywayidle',
+      multipleStatements: true,
     });
 
     console.log('已连接到MySQL服务器');
@@ -190,4 +192,12 @@ async function initDatabase() {
   }
 }
 
-initDatabase();
+initDatabase()
+  .then(() => {
+    console.log('数据库初始化完成');
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('数据库初始化失败:', err);
+    process.exit(1);
+  });

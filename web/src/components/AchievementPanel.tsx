@@ -5,7 +5,7 @@ import { getTitle, getTitleColor, getNextTitleProgress } from '../utils/titleSys
 import { formatNumber } from '../utils/numberFormat'
 
 const AchievementPanel: React.FC = () => {
-  const { achievements, units, unitDefinitions } = useGameStore()
+  const { units, unitDefinitions } = useGameStore()
 
   // 添加调试信息
   console.log('AchievementPanel render - unitDefinitions:', unitDefinitions)
@@ -139,28 +139,6 @@ const AchievementPanel: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* 原有成就 */}
-      <div className="achievements-section">
-        <h3>🎖️ 系统成就</h3>
-        <div className="achievements-grid">
-          {achievements.map((achievement) => (
-            <div
-              key={achievement.id}
-              className={`achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}`}
-            >
-              <div className="achievement-header">
-                <span className="achievement-icon">{achievement.icon}</span>
-                <span className="achievement-name">{achievement.name}</span>
-              </div>
-              <div className="achievement-description">{achievement.description}</div>
-              <div className="achievement-status">
-                {achievement.unlocked ? '✅ 已解锁' : '🔒 未解锁'}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )

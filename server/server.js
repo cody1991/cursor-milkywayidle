@@ -1,3 +1,6 @@
+// 加载环境变量
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,18 +9,46 @@ const http = require('http');
 const WebSocket = require('ws');
 const pool = require('./db');
 
+// 环境配置
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const isDevelopment = NODE_ENV === 'development';
+const isProduction = NODE_ENV === 'production';
+
+console.log(`🚀 启动环境: ${NODE_ENV}`);
+console.log(`📊 开发模式: ${isDevelopment}`);
+console.log(`🏭 生产模式: ${isProduction}`);
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 3001;
 
 // 中间件
-app.use(helmet());
-app.use(cors());
+app.use(
+  helmet({
+    contentSecurityPolicy: isProduction ? undefined : false, // 开发环境禁用CSP
+  }),
+);
+app.use(
+  cors({
+    origin: isDevelopment
+      ? '*'
+      : process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 // 静态文件服务
 app.use(express.static(path.join(__dirname, '../web/dist')));
+
+// 开发环境添加详细日志中间件
+if (isDevelopment) {
+  app.use((req, res, next) => {
+    console.log(`📝 ${req.method} ${req.path} - ${new Date().toISOString()}`);
+    next();
+  });
+}
 
 // 存储连接的WebSocket客户端
 const clients = new Map();
@@ -27,7 +58,9 @@ wss.on('connection', async (ws, req) => {
   const userId = req.url.split('=')[1];
   clients.set(userId, ws);
 
-  console.log(`用户 ${userId} 建立WebSocket连接`);
+  if (isDevelopment) {
+    console.log(`🔌 用户 ${userId} 建立WebSocket连接`);
+  }
 
   // 发送初始数据
   await sendInitialData(ws, userId);
@@ -44,7 +77,9 @@ wss.on('connection', async (ws, req) => {
   ws.on('message', async (message) => {
     try {
       const data = JSON.parse(message);
-      console.log('收到WebSocket消息:', data.type, '来自用户:', userId);
+      if (isDevelopment) {
+        console.log('📨 收到WebSocket消息:', data.type, '来自用户:', userId);
+      }
 
       switch (data.type) {
         case 'chat':
@@ -100,32 +135,35 @@ wss.on('connection', async (ws, req) => {
     // 清除定时器
     clearInterval(activityUpdateInterval);
     clients.delete(userId);
-    console.log(`用户 ${userId} 断开WebSocket连接`);
+    if (isDevelopment) {
+      console.log(`🔌 用户 ${userId} 断开WebSocket连接`);
+    }
   });
 });
 
 // 发送初始数据
 async function sendInitialData(ws, userId) {
   try {
-    // 初始化用户状态（如果是新用户）
+    // 初始化用户状态
     await initializeUserState(userId);
-
-    // 发送成就数据
-    await handleFetchAchievements(ws, userId);
-
-    // 发送排行榜数据
-    await handleFetchLeaderboard(ws);
-
-    // 发送聊天历史
-    await handleFetchChatHistory(ws);
 
     // 发送用户状态
     await sendUserState(userId);
 
-    // 发送用户活动
+    // 发送活动列表
     await sendUserActivities(userId);
+
+    // 获取单位定义
+    await handleFetchUnitDefinitions(ws);
+
+    // 获取排行榜数据
+    await handleFetchLeaderboard(ws);
+
+    if (isDevelopment) {
+      console.log(`✅ 用户 ${userId} 初始数据发送完成`);
+    }
   } catch (error) {
-    console.error('发送初始数据错误:', error);
+    console.error('❌ 发送初始数据错误:', error);
   }
 }
 
@@ -167,87 +205,65 @@ async function handleChatMessage(userId, message) {
 
     broadcastToAll(chatData);
 
-    console.log(`聊天消息: ${username}: ${message}`);
+    if (isDevelopment) {
+      console.log(`💬 聊天消息: ${username}: ${message}`);
+    }
   } catch (error) {
-    console.error('保存聊天消息错误:', error);
+    console.error('❌ 保存聊天消息错误:', error);
   }
 }
 
-// 处理获取成就
+// 处理获取成就（简化版本，不涉及数据库）
 async function handleFetchAchievements(ws, userId) {
   try {
-    // 获取所有成就
-    const [achievements] = await pool.query('SELECT * FROM achievements');
-
-    // 获取用户已解锁的成就
-    const [unlocked] = await pool.query(
-      'SELECT achievement_id FROM user_achievements WHERE user_id = ?',
-      [userId],
-    );
-
-    const unlockedIds = unlocked.map((u) => u.achievement_id);
-
-    const achievementsWithStatus = achievements.map((achievement) => ({
-      ...achievement,
-      unlocked: unlockedIds.includes(achievement.id),
-    }));
-
+    // 发送空的成就列表，让前端自己计算
     ws.send(
       JSON.stringify({
         type: 'achievements',
-        data: achievementsWithStatus,
+        data: [],
       }),
     );
   } catch (error) {
-    console.error('获取成就错误:', error);
+    console.error('❌ 获取成就错误:', error);
   }
 }
 
-// 处理解锁成就
+// 处理解锁成就（简化版本，不涉及数据库）
 async function handleUnlockAchievement(userId, achievementId) {
   try {
-    await pool.query(
-      'INSERT IGNORE INTO user_achievements (user_id, achievement_id) VALUES (?, ?)',
-      [userId, achievementId],
-    );
+    // 只记录日志，不进行数据库操作
+    if (isDevelopment) {
+      console.log(`🏆 用户 ${userId} 解锁成就: ${achievementId}`);
+    }
 
-    // 广播成就解锁通知
-    const [user] = await pool.query('SELECT username FROM users WHERE id = ?', [
-      userId,
-    ]);
-    const username = user.length > 0 ? user[0].username : userId;
-
+    // 可以在这里添加广播通知如果需要的话
     const achievementData = {
       type: 'achievement_unlocked',
       userId,
-      username,
       achievementId,
     };
 
     broadcastToAll(achievementData);
-
-    // 重新发送成就列表给所有用户
-    clients.forEach(async (client, clientUserId) => {
-      if (client.readyState === WebSocket.OPEN) {
-        await handleFetchAchievements(client, clientUserId);
-      }
-    });
   } catch (error) {
-    console.error('解锁成就错误:', error);
+    console.error('❌ 解锁成就错误:', error);
   }
 }
 
 // 处理提交分数
 async function handleSubmitScore(userId, score) {
   try {
-    console.log(`用户 ${userId} 提交分数: ${score}`);
+    if (isDevelopment) {
+      console.log(`📊 用户 ${userId} 提交分数: ${score}`);
+    }
 
     await pool.query(
       'REPLACE INTO leaderboard (user_id, score) VALUES (?, ?)',
       [userId, score],
     );
 
-    console.log(`分数已保存到数据库: 用户=${userId}, 分数=${score}`);
+    if (isDevelopment) {
+      console.log(`💾 分数已保存到数据库: 用户=${userId}, 分数=${score}`);
+    }
 
     // 广播排行榜更新
     const leaderboardData = {
@@ -265,7 +281,7 @@ async function handleSubmitScore(userId, score) {
       }
     });
   } catch (error) {
-    console.error('提交分数错误:', error);
+    console.error('❌ 提交分数错误:', error);
   }
 }
 
@@ -277,14 +293,18 @@ async function handleSubmitScoreAndSyncExperience(
   unitDefinitions,
 ) {
   try {
-    console.log(`用户 ${userId} 提交分数: ${score}`);
+    if (isDevelopment) {
+      console.log(`📊 用户 ${userId} 提交分数: ${score}`);
+    }
 
     await pool.query(
       'REPLACE INTO leaderboard (user_id, score) VALUES (?, ?)',
       [userId, score],
     );
 
-    console.log(`分数已保存到数据库: 用户=${userId}, 分数=${score}`);
+    if (isDevelopment) {
+      console.log(`💾 分数已保存到数据库: 用户=${userId}, 分数=${score}`);
+    }
 
     // 广播排行榜更新
     const leaderboardData = {
@@ -305,14 +325,16 @@ async function handleSubmitScoreAndSyncExperience(
     // 同步经验
     await syncExperience(userId, units, unitDefinitions);
   } catch (error) {
-    console.error('提交分数并同步经验错误:', error);
+    console.error('❌ 提交分数并同步经验错误:', error);
   }
 }
 
 // 处理获取排行榜
 async function handleFetchLeaderboard(ws) {
   try {
-    console.log('获取排行榜数据...');
+    if (isDevelopment) {
+      console.log('🏆 获取排行榜数据...');
+    }
 
     const [rows] = await pool.query(`
       SELECT l.score, u.username, l.updated_at 
@@ -322,10 +344,12 @@ async function handleFetchLeaderboard(ws) {
       LIMIT 100
     `);
 
-    console.log(`排行榜数据: ${rows.length} 条记录`);
-    rows.forEach((row, index) => {
-      console.log(`${index + 1}. ${row.username}: ${row.score}`);
-    });
+    if (isDevelopment) {
+      console.log(`📊 排行榜数据: ${rows.length} 条记录`);
+      rows.forEach((row, index) => {
+        console.log(`${index + 1}. ${row.username}: ${row.score}`);
+      });
+    }
 
     ws.send(
       JSON.stringify({
@@ -334,7 +358,7 @@ async function handleFetchLeaderboard(ws) {
       }),
     );
   } catch (error) {
-    console.error('获取排行榜错误:', error);
+    console.error('❌ 获取排行榜错误:', error);
   }
 }
 
@@ -355,7 +379,7 @@ async function handleFetchChatHistory(ws) {
       }),
     );
   } catch (error) {
-    console.error('获取聊天历史错误:', error);
+    console.error('❌ 获取聊天历史错误:', error);
   }
 }
 
@@ -459,20 +483,27 @@ async function cleanupOldChatMessages() {
       )
     `);
 
-    if (result.affectedRows > 0) {
-      console.log(`清理了 ${result.affectedRows} 条旧聊天消息`);
+    if (result.affectedRows > 0 && isDevelopment) {
+      console.log(`🧹 清理了 ${result.affectedRows} 条旧聊天消息`);
     }
   } catch (error) {
-    console.error('清理旧聊天消息错误:', error);
+    console.error('❌ 清理旧聊天消息错误:', error);
   }
 }
 
 // 启动服务器
 server.listen(PORT, () => {
   console.log(`🐄 银河奶牛放置服务器运行在端口 ${PORT}`);
-  console.log(`📊 健康检查: http://localhost:${PORT}/api/health`);
-  console.log(`🎮 游戏: http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
+  console.log(`🌍 环境: ${NODE_ENV}`);
+
+  if (isDevelopment) {
+    console.log(`📊 健康检查: http://localhost:${PORT}/api/health`);
+    console.log(`🎮 游戏: http://localhost:${PORT}`);
+    console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
+  } else {
+    console.log(`🎮 游戏已启动`);
+    console.log(`🔌 WebSocket服务已启动`);
+  }
 
   // 每小时清理一次旧消息
   setInterval(cleanupOldChatMessages, 60 * 60 * 1000);
@@ -484,6 +515,32 @@ server.listen(PORT, () => {
 // 处理开始活动
 async function handleStartActivity(userId, moduleId, unitId, times) {
   try {
+    // 检查是否已有相同类型的活动在进行中
+    const [existingActivity] = await pool.query(
+      'SELECT * FROM production_activities WHERE user_id = ? AND module_id = ? AND unit_id = ? AND is_active = TRUE',
+      [userId, moduleId, unitId],
+    );
+
+    if (existingActivity.length > 0) {
+      if (isDevelopment) {
+        console.log(
+          `⚠️ 用户 ${userId} 尝试为已在生产中的单位 ${moduleId}.${unitId} 创建新活动`,
+        );
+      }
+
+      // 发送错误消息给客户端
+      const client = clients.get(userId);
+      if (client && client.readyState === WebSocket.OPEN) {
+        client.send(
+          JSON.stringify({
+            type: 'activity_error',
+            message: '该单位已在生产中，请等待当前活动完成后再开始新的生产',
+          }),
+        );
+      }
+      return;
+    }
+
     // 检查用户当前活跃活动数量，限制最多5个
     const [currentActivities] = await pool.query(
       'SELECT COUNT(*) as count FROM production_activities WHERE user_id = ? AND is_active = TRUE',
@@ -491,7 +548,11 @@ async function handleStartActivity(userId, moduleId, unitId, times) {
     );
 
     if (currentActivities[0].count >= 5) {
-      console.log(`用户 ${userId} 尝试创建第6个活动，但已达到最大限制(5个)`);
+      if (isDevelopment) {
+        console.log(
+          `⚠️ 用户 ${userId} 尝试创建第6个活动，但已达到最大限制(5个)`,
+        );
+      }
 
       // 发送错误消息给客户端
       const client = clients.get(userId);
@@ -518,24 +579,32 @@ async function handleStartActivity(userId, moduleId, unitId, times) {
     );
 
     if (userModule.length === 0 || !userModule[0].unlocked) {
-      console.log(`用户 ${userId} 尝试使用未解锁的模块 ${moduleId}`);
+      if (isDevelopment) {
+        console.log(`🔒 用户 ${userId} 尝试使用未解锁的模块 ${moduleId}`);
+      }
       return;
     }
 
     if (userUnit.length === 0 || !userUnit[0].unlocked) {
-      console.log(`用户 ${userId} 尝试使用未解锁的单位 ${unitId}`);
+      if (isDevelopment) {
+        console.log(`🔒 用户 ${userId} 尝试使用未解锁的单位 ${unitId}`);
+      }
       return;
     }
 
     if (userModule[0].current_level < getUnitRequiredLevel(unitId)) {
-      console.log(`用户 ${userId} 等级不足，无法使用单位 ${unitId}`);
+      if (isDevelopment) {
+        console.log(`📊 用户 ${userId} 等级不足，无法使用单位 ${unitId}`);
+      }
       return;
     }
 
     // 获取单位信息
     const unitInfo = await getUnitInfo(moduleId, unitId);
     if (!unitInfo) {
-      console.log(`单位信息不存在: ${moduleId}.${unitId}`);
+      if (isDevelopment) {
+        console.log(`❓ 单位信息不存在: ${moduleId}.${unitId}`);
+      }
       return;
     }
 
@@ -544,9 +613,11 @@ async function handleStartActivity(userId, moduleId, unitId, times) {
       .substr(2, 9)}`;
     const startTime = Date.now();
 
-    // 对于无限次活动，不设置结束时间
+    // 对于无限次活动，设置一个很远的未来时间作为结束时间
     const endTime =
-      times === -1 ? null : startTime + unitInfo.actionTime * times;
+      times === -1
+        ? startTime + 365 * 24 * 60 * 60 * 1000
+        : startTime + unitInfo.actionTime * times; // 一年后
 
     // 创建活动记录
     await pool.query(
@@ -554,11 +625,13 @@ async function handleStartActivity(userId, moduleId, unitId, times) {
       [activityId, userId, moduleId, unitId, times, startTime, endTime],
     );
 
-    console.log(
-      `用户 ${userId} 开始活动: ${unitInfo.name} x${
-        times === -1 ? '无限' : times
-      } (当前活动数: ${currentActivities[0].count + 1}/5)`,
-    );
+    if (isDevelopment) {
+      console.log(
+        `🚀 用户 ${userId} 开始活动: ${unitInfo.name} x${
+          times === -1 ? '无限' : times
+        } (当前活动数: ${currentActivities[0].count + 1}/5)`,
+      );
+    }
 
     // 发送活动开始确认
     const client = clients.get(userId);
@@ -576,7 +649,7 @@ async function handleStartActivity(userId, moduleId, unitId, times) {
       );
     }
   } catch (error) {
-    console.error('开始活动错误:', error);
+    console.error('❌ 开始活动错误:', error);
   }
 }
 
@@ -588,7 +661,9 @@ async function handleStopActivity(userId, activityId) {
       [activityId, userId],
     );
 
-    console.log(`用户 ${userId} 停止活动: ${activityId}`);
+    if (isDevelopment) {
+      console.log(`⏹️ 用户 ${userId} 停止活动: ${activityId}`);
+    }
 
     // 发送活动停止确认
     const client = clients.get(userId);
@@ -601,7 +676,7 @@ async function handleStopActivity(userId, activityId) {
       );
     }
   } catch (error) {
-    console.error('停止活动错误:', error);
+    console.error('❌ 停止活动错误:', error);
   }
 }
 
@@ -788,91 +863,135 @@ function getResourceName(moduleId) {
 }
 
 async function addUserResource(userId, resourceName, amount) {
-  try {
-    // 使用事务确保原子性
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
+  const maxRetries = 3;
+  let retryCount = 0;
 
+  while (retryCount < maxRetries) {
     try {
-      // 先获取当前资源数量
-      const [currentResource] = await connection.query(
-        'SELECT amount, max_amount FROM user_resources WHERE user_id = ? AND resource_name = ?',
-        [userId, resourceName],
+      // 使用事务确保原子性
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        // 先获取当前资源数量
+        const [currentResource] = await connection.query(
+          'SELECT amount, max_amount FROM user_resources WHERE user_id = ? AND resource_name = ?',
+          [userId, resourceName],
+        );
+
+        let newAmount;
+        if (currentResource.length === 0) {
+          // 用户还没有该资源记录，创建新记录
+          newAmount = Math.min(amount, 1000); // 默认最大数量
+          await connection.query(
+            'INSERT INTO user_resources (user_id, resource_name, amount, max_amount) VALUES (?, ?, ?, ?)',
+            [userId, resourceName, newAmount, 1000],
+          );
+        } else {
+          // 用户已有该资源记录，原子性累加
+          const maxAmount = currentResource[0].max_amount;
+          newAmount = Math.min(currentResource[0].amount + amount, maxAmount);
+          await connection.query(
+            'UPDATE user_resources SET amount = ? WHERE user_id = ? AND resource_name = ?',
+            [newAmount, userId, resourceName],
+          );
+        }
+
+        await connection.commit();
+        console.log(
+          `用户 ${userId} 资源 ${resourceName} 增加 ${amount}，新数量: ${newAmount}`,
+        );
+        return; // 成功完成，退出重试循环
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `增加用户资源错误 (尝试 ${retryCount}/${maxRetries}):`,
+        error,
       );
 
-      let newAmount;
-      if (currentResource.length === 0) {
-        // 用户还没有该资源记录，创建新记录
-        newAmount = Math.min(amount, 1000); // 默认最大数量
-        await connection.query(
-          'INSERT INTO user_resources (user_id, resource_name, amount, max_amount) VALUES (?, ?, ?, ?)',
-          [userId, resourceName, newAmount, 1000],
-        );
-      } else {
-        // 用户已有该资源记录，原子性累加
-        const maxAmount = currentResource[0].max_amount;
-        newAmount = Math.min(currentResource[0].amount + amount, maxAmount);
-        await connection.query(
-          'UPDATE user_resources SET amount = ? WHERE user_id = ? AND resource_name = ?',
-          [newAmount, userId, resourceName],
-        );
+      if (error.code === 'ER_LOCK_WAIT_TIMEOUT' && retryCount < maxRetries) {
+        // 锁等待超时，等待一段时间后重试
+        const waitTime = Math.min(1000 * retryCount, 3000);
+        console.log(`锁等待超时，等待 ${waitTime}ms 后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
       }
 
-      await connection.commit();
-      console.log(
-        `用户 ${userId} 资源 ${resourceName} 增加 ${amount}，新数量: ${newAmount}`,
-      );
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+      // 其他错误或已达到最大重试次数
+      console.error('增加用户资源最终失败:', error);
+      break;
     }
-  } catch (error) {
-    console.error('增加用户分数错误:', error);
   }
 }
 
 async function addUserScore(userId, score) {
-  try {
-    // 使用事务确保原子性
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
+  const maxRetries = 3;
+  let retryCount = 0;
 
+  while (retryCount < maxRetries) {
     try {
-      // 先获取当前分数
-      const [currentScore] = await connection.query(
-        'SELECT score FROM leaderboard WHERE user_id = ?',
-        [userId],
+      // 使用事务确保原子性
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        // 先获取当前分数
+        const [currentScore] = await connection.query(
+          'SELECT score FROM leaderboard WHERE user_id = ?',
+          [userId],
+        );
+
+        let newScore;
+        if (currentScore.length === 0) {
+          // 用户还没有分数记录，创建新记录
+          newScore = score;
+          await connection.query(
+            'INSERT INTO leaderboard (user_id, score) VALUES (?, ?)',
+            [userId, newScore],
+          );
+        } else {
+          // 用户已有分数记录，原子性累加
+          newScore = currentScore[0].score + score;
+          await connection.query(
+            'UPDATE leaderboard SET score = ? WHERE user_id = ?',
+            [newScore, userId],
+          );
+        }
+
+        await connection.commit();
+        console.log(`用户 ${userId} 分数增加 ${score}，新总分: ${newScore}`);
+        return; // 成功完成，退出重试循环
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `增加用户分数错误 (尝试 ${retryCount}/${maxRetries}):`,
+        error,
       );
 
-      let newScore;
-      if (currentScore.length === 0) {
-        // 用户还没有分数记录，创建新记录
-        newScore = score;
-        await connection.query(
-          'INSERT INTO leaderboard (user_id, score) VALUES (?, ?)',
-          [userId, newScore],
-        );
-      } else {
-        // 用户已有分数记录，原子性累加
-        newScore = currentScore[0].score + score;
-        await connection.query(
-          'UPDATE leaderboard SET score = ? WHERE user_id = ?',
-          [newScore, userId],
-        );
+      if (error.code === 'ER_LOCK_WAIT_TIMEOUT' && retryCount < maxRetries) {
+        // 锁等待超时，等待一段时间后重试
+        const waitTime = Math.min(1000 * retryCount, 3000);
+        console.log(`锁等待超时，等待 ${waitTime}ms 后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
       }
 
-      await connection.commit();
-      console.log(`用户 ${userId} 分数增加 ${score}，新总分: ${newScore}`);
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+      // 其他错误或已达到最大重试次数
+      console.error('增加用户分数最终失败:', error);
+      break;
     }
-  } catch (error) {
-    console.error('增加用户分数错误:', error);
   }
 }
 
@@ -902,87 +1021,144 @@ function calculateLevelFromExperience(experience) {
 }
 
 async function addModuleExperience(userId, moduleId, experience) {
-  try {
-    // 使用事务确保原子性
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
+  const maxRetries = 3;
+  let retryCount = 0;
 
+  while (retryCount < maxRetries) {
     try {
-      const [userModule] = await connection.query(
-        'SELECT experience FROM user_modules WHERE user_id = ? AND module_id = ?',
-        [userId, moduleId],
+      // 使用事务确保原子性
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        const [userModule] = await connection.query(
+          'SELECT experience FROM user_modules WHERE user_id = ? AND module_id = ?',
+          [userId, moduleId],
+        );
+
+        let newExperience;
+        if (userModule.length === 0) {
+          // 用户还没有该模块记录，创建新记录
+          newExperience = experience;
+          await connection.query(
+            'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
+            [userId, moduleId, newExperience],
+          );
+        } else {
+          // 用户已有该模块记录，原子性累加
+          newExperience = userModule[0].experience + experience;
+          await connection.query(
+            'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
+            [newExperience, userId, moduleId],
+          );
+        }
+
+        // 计算新的等级信息
+        const levelInfo = calculateLevelFromExperience(newExperience);
+
+        // 解锁相应等级的单位
+        await unlockUnitsByLevel(userId, moduleId, levelInfo.level);
+
+        await connection.commit();
+        console.log(
+          `用户 ${userId} 模块 ${moduleId} 经验增加 ${experience}，新经验: ${newExperience}，新等级: ${levelInfo.level}`,
+        );
+        return; // 成功完成，退出重试循环
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `增加模块经验错误 (尝试 ${retryCount}/${maxRetries}):`,
+        error,
       );
 
-      let newExperience;
-      if (userModule.length === 0) {
-        // 用户还没有该模块记录，创建新记录
-        newExperience = experience;
-        await connection.query(
-          'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
-          [userId, moduleId, newExperience],
-        );
-      } else {
-        // 用户已有该模块记录，原子性累加
-        newExperience = userModule[0].experience + experience;
-        await connection.query(
-          'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
-          [newExperience, userId, moduleId],
-        );
+      if (error.code === 'ER_LOCK_WAIT_TIMEOUT' && retryCount < maxRetries) {
+        // 锁等待超时，等待一段时间后重试
+        const waitTime = Math.min(1000 * retryCount, 3000);
+        console.log(`锁等待超时，等待 ${waitTime}ms 后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
       }
 
-      // 计算新的等级信息
-      const levelInfo = calculateLevelFromExperience(newExperience);
-
-      // 解锁相应等级的单位
-      await unlockUnitsByLevel(userId, moduleId, levelInfo.level);
-
-      await connection.commit();
-      console.log(
-        `用户 ${userId} 模块 ${moduleId} 经验增加 ${experience}，新经验: ${newExperience}，新等级: ${levelInfo.level}`,
-      );
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+      // 其他错误或已达到最大重试次数
+      console.error('增加模块经验最终失败:', error);
+      break;
     }
-  } catch (error) {
-    console.error('增加模块经验错误:', error);
   }
 }
 
 async function unlockUnitsByLevel(userId, moduleId, level) {
-  const unitDefinitions = {
-    cow: [
-      'normalCow',
-      'greenCow',
-      'blueCow',
-      'purpleCow',
-      'crimsonCow',
-      'rainbowCow',
-      'divineCow',
-    ],
-    wood: [
-      'normalTree',
-      'birchTree',
-      'cedarTree',
-      'purpleHeartTree',
-      'ginkgoTree',
-      'redwoodTree',
-      'mysteryTree',
-    ],
-    harvest: ['spaceBerry', 'starfruit', 'spaceCoffee', 'radiantFiber'],
-  };
+  const maxRetries = 3;
+  let retryCount = 0;
 
-  const units = unitDefinitions[moduleId] || [];
-  for (let i = 0; i < Math.min(level, units.length); i++) {
-    const unitId = units[i];
-    const unitInfo = await getUnitInfo(moduleId, unitId);
-    if (unitInfo && unitInfo.requiredLevel <= level) {
-      await pool.query(
-        'INSERT INTO user_units (user_id, module_id, unit_id, unlocked) VALUES (?, ?, ?, TRUE) ON DUPLICATE KEY UPDATE unlocked = TRUE',
-        [userId, moduleId, unitId],
-      );
+  while (retryCount < maxRetries) {
+    try {
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        const unitDefinitions = {
+          cow: [
+            'normalCow',
+            'greenCow',
+            'blueCow',
+            'purpleCow',
+            'crimsonCow',
+            'rainbowCow',
+            'divineCow',
+          ],
+          wood: [
+            'normalTree',
+            'birchTree',
+            'cedarTree',
+            'purpleHeartTree',
+            'ginkgoTree',
+            'redwoodTree',
+            'mysteryTree',
+          ],
+          harvest: ['spaceBerry', 'starfruit', 'spaceCoffee', 'radiantFiber'],
+        };
+
+        const units = unitDefinitions[moduleId] || [];
+        for (let i = 0; i < Math.min(level, units.length); i++) {
+          const unitId = units[i];
+          const unitInfo = await getUnitInfo(moduleId, unitId);
+          if (unitInfo && unitInfo.requiredLevel <= level) {
+            await connection.query(
+              'INSERT INTO user_units (user_id, module_id, unit_id, unlocked) VALUES (?, ?, ?, TRUE) ON DUPLICATE KEY UPDATE unlocked = TRUE',
+              [userId, moduleId, unitId],
+            );
+          }
+        }
+
+        await connection.commit();
+        return; // 成功完成，退出重试循环
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      retryCount++;
+      console.error(`解锁单位错误 (尝试 ${retryCount}/${maxRetries}):`, error);
+
+      if (error.code === 'ER_LOCK_WAIT_TIMEOUT' && retryCount < maxRetries) {
+        // 锁等待超时，等待一段时间后重试
+        const waitTime = Math.min(1000 * retryCount, 3000);
+        console.log(`锁等待超时，等待 ${waitTime}ms 后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
+      }
+
+      // 其他错误或已达到最大重试次数
+      console.error('解锁单位最终失败:', error);
+      break;
     }
   }
 }
@@ -1032,6 +1208,12 @@ async function sendUserState(userId) {
     [userId],
   );
 
+  // 获取历史分数
+  const [historicalScore] = await pool.query(
+    'SELECT score FROM leaderboard WHERE user_id = ?',
+    [userId],
+  );
+
   const client = clients.get(userId);
   if (client && client.readyState === WebSocket.OPEN) {
     client.send(
@@ -1067,6 +1249,8 @@ async function sendUserState(userId) {
           }),
           {},
         ),
+        historicalScore:
+          historicalScore.length > 0 ? historicalScore[0].score : 0,
       }),
     );
   }
@@ -1158,7 +1342,8 @@ async function getAllUnitDefinitions() {
       description: unit.description,
     }));
 
-    console.log('处理后的单位定义:', result);
+    // console.log('处理后的单位定义:', result);
+    console.log('处理后的单位定义:', result.length);
     return result;
   } catch (error) {
     console.error('获取所有单位定义错误:', error);
@@ -1172,7 +1357,7 @@ async function handleFetchUnitDefinitions(ws) {
     console.log('开始获取单位定义...');
     const unitDefinitions = await getAllUnitDefinitions();
     console.log('获取到单位定义数量:', unitDefinitions.length);
-    console.log('单位定义数据:', unitDefinitions);
+    // console.log('单位定义数据:', unitDefinitions);
 
     ws.send(
       JSON.stringify({
@@ -1188,67 +1373,106 @@ async function handleFetchUnitDefinitions(ws) {
 
 // 同步经验值
 async function syncExperience(userId, units, unitDefinitions) {
-  try {
-    console.log(`开始同步用户 ${userId} 的经验值`);
+  const maxRetries = 3;
+  let retryCount = 0;
 
-    // 按模块分组计算经验值
-    const moduleExperience = {};
-
-    for (const unitKey in units) {
-      const unit = units[unitKey];
-      const [moduleId, unitId] = unitKey.split('.');
-      const unitDef = unitDefinitions?.find(
-        (def) => def.moduleId === moduleId && def.unitId === unitId,
+  while (retryCount < maxRetries) {
+    try {
+      console.log(
+        `开始同步用户 ${userId} 的经验值 (尝试 ${
+          retryCount + 1
+        }/${maxRetries})`,
       );
 
-      if (
-        unitDef &&
-        typeof unit.owned === 'number' &&
-        typeof unitDef.score === 'number'
-      ) {
-        const experience = unit.owned * unitDef.score;
-        moduleExperience[moduleId] =
-          (moduleExperience[moduleId] || 0) + experience;
-        console.log(
-          `模块 ${moduleId} 单位 ${unitId}: 拥有 ${unit.owned}, 分数 ${unitDef.score}, 经验 ${experience}`,
-        );
+      // 使用事务确保原子性
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
+
+      try {
+        // 按模块分组计算经验值
+        const moduleExperience = {};
+
+        for (const unitKey in units) {
+          const unit = units[unitKey];
+          const [moduleId, unitId] = unitKey.split('.');
+          const unitDef = unitDefinitions?.find(
+            (def) => def.moduleId === moduleId && def.unitId === unitId,
+          );
+
+          if (
+            unitDef &&
+            typeof unit.owned === 'number' &&
+            typeof unitDef.score === 'number'
+          ) {
+            const experience = unit.owned * unitDef.score;
+            moduleExperience[moduleId] =
+              (moduleExperience[moduleId] || 0) + experience;
+            // console.log(
+            //   `模块 ${moduleId} 单位 ${unitId}: 拥有 ${unit.owned}, 分数 ${unitDef.score}, 经验 ${experience}`,
+            // );
+          }
+        }
+
+        // 更新每个模块的经验值
+        for (const moduleId in moduleExperience) {
+          const totalExperience = moduleExperience[moduleId];
+          console.log(`更新模块 ${moduleId} 经验值为: ${totalExperience}`);
+
+          // 检查模块是否存在，不存在则创建
+          const [existingModule] = await connection.query(
+            'SELECT * FROM user_modules WHERE user_id = ? AND module_id = ?',
+            [userId, moduleId],
+          );
+
+          if (existingModule.length === 0) {
+            // 创建新模块记录
+            await connection.query(
+              'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
+              [userId, moduleId, totalExperience],
+            );
+            console.log(
+              `创建模块 ${moduleId} 记录，经验值: ${totalExperience}`,
+            );
+          } else {
+            // 更新现有模块记录
+            await connection.query(
+              'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
+              [totalExperience, userId, moduleId],
+            );
+            console.log(`更新模块 ${moduleId} 经验值为: ${totalExperience}`);
+          }
+        }
+
+        await connection.commit();
+        console.log(`用户 ${userId} 经验值同步完成`);
+
+        // 移除自动发送用户状态，避免循环调用
+        return; // 成功完成，退出重试循环
+      } catch (error) {
+        await connection.rollback();
+        throw error;
+      } finally {
+        connection.release();
       }
-    }
-
-    // 更新每个模块的经验值
-    for (const moduleId in moduleExperience) {
-      const totalExperience = moduleExperience[moduleId];
-      console.log(`更新模块 ${moduleId} 经验值为: ${totalExperience}`);
-
-      // 检查模块是否存在，不存在则创建
-      const [existingModule] = await pool.query(
-        'SELECT * FROM user_modules WHERE user_id = ? AND module_id = ?',
-        [userId, moduleId],
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `同步经验值错误 (尝试 ${retryCount}/${maxRetries}):`,
+        error,
       );
 
-      if (existingModule.length === 0) {
-        // 创建新模块记录
-        await pool.query(
-          'INSERT INTO user_modules (user_id, module_id, experience) VALUES (?, ?, ?)',
-          [userId, moduleId, totalExperience],
-        );
-        console.log(`创建模块 ${moduleId} 记录，经验值: ${totalExperience}`);
-      } else {
-        // 更新现有模块记录
-        await pool.query(
-          'UPDATE user_modules SET experience = ? WHERE user_id = ? AND module_id = ?',
-          [totalExperience, userId, moduleId],
-        );
-        console.log(`更新模块 ${moduleId} 经验值为: ${totalExperience}`);
+      if (error.code === 'ER_LOCK_WAIT_TIMEOUT' && retryCount < maxRetries) {
+        // 锁等待超时，等待一段时间后重试
+        const waitTime = Math.min(1000 * retryCount, 3000); // 递增等待时间，最大3秒
+        console.log(`锁等待超时，等待 ${waitTime}ms 后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
       }
+
+      // 其他错误或已达到最大重试次数
+      console.error('同步经验值最终失败:', error);
+      break;
     }
-
-    console.log(`用户 ${userId} 经验值同步完成`);
-
-    // 发送更新后的用户状态
-    await sendUserState(userId);
-  } catch (error) {
-    console.error('同步经验值错误:', error);
   }
 }
 

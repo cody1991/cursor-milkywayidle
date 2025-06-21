@@ -3,12 +3,22 @@
   box-sizing: border-box;
 }
 
+html {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  min-height: 100vh;
+}
+
 body {
   margin: 0;
   font-family: 'Arial', sans-serif;
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
   color: #e0e0e0;
   overflow-x: hidden;
+  min-height: 100vh;
+}
+
+#root {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
   min-height: 100vh;
 }
 
@@ -95,12 +105,18 @@ body {
 }
 
 .resource-item .animated-number {
-  color: #4caf50;
   font-weight: bold;
+  color: #e0e0e0;
   font-size: 14px;
   min-width: 50px;
   text-align: right;
-  transition: all 0.3s ease;
+}
+
+.resource-score {
+  color: #ffd700;
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 /* 数字变化动画效果 */
@@ -606,15 +622,16 @@ body {
 }
 
 .start-activity-btn.disabled {
-  background: linear-gradient(45deg, #666, #555);
-  color: #999;
+  background: rgba(158, 158, 158, 0.3);
+  border-color: rgba(158, 158, 158, 0.5);
+  color: #9e9e9e;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
 }
 
 .start-activity-btn.disabled:hover {
-  background: linear-gradient(45deg, #666, #555);
+  background: rgba(158, 158, 158, 0.3);
+  border-color: rgba(158, 158, 158, 0.5);
   transform: none;
   box-shadow: none;
 }
@@ -1721,6 +1738,13 @@ body {
   font-size: 14px;
   min-width: 50px;
   text-align: right;
+}
+
+.resource-score {
+  color: #ffd700;
+  font-weight: 600;
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 /* 响应式设计 */

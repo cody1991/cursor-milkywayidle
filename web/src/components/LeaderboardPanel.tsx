@@ -1,10 +1,23 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useGameStore } from '../store/gameStore'
 import AnimatedNumber from './AnimatedNumber'
 import { formatNumber } from '../utils/numberFormat'
 
 const LeaderboardPanel: React.FC = () => {
-  const leaderboard = useGameStore((state) => state.leaderboard)
+  const { leaderboard, ws, isLoggedIn } = useGameStore()
+
+  // 在组件挂载时获取排行榜数据
+  useEffect(() => {
+    if (isLoggedIn && ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'fetch_leaderboard'
+        }))
+      } catch (error) {
+        console.error('获取排行榜失败:', error)
+      }
+    }
+  }, [isLoggedIn, ws])
 
   const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('zh-CN')

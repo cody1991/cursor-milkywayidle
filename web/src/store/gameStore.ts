@@ -95,6 +95,7 @@ export interface GameState {
   lastSave: number
   totalPlayTime: number
   unitDefinitions: UnitDefinition[]
+  historicalScore: number // 历史累计分数
 
   login: (username: string) => Promise<void>
   logout: () => void
@@ -108,11 +109,9 @@ export interface GameState {
   updateActivities: () => void
   saveGame: () => Promise<void>
   loadGame: () => Promise<void>
-  unlockAchievement: (achievementId: string) => Promise<void>
   submitScore: () => Promise<void>
   autoSubmitScore: () => Promise<void>
   sendChatMessage: (message: string) => Promise<void>
-  checkAchievements: () => void
   handleWebSocketMessage: (data: any) => void
   saveLoginInfo: () => void
   loadLoginInfo: () => boolean
@@ -195,6 +194,7 @@ export const useGameStore = create<GameState>()(
     lastSave: Date.now(),
     totalPlayTime: 0,
     unitDefinitions: [],
+    historicalScore: 0,
 
     login: async (username: string) => {
       if (!username.trim()) return
@@ -257,7 +257,8 @@ export const useGameStore = create<GameState>()(
         achievements: [],
         chatMessages: [],
         leaderboard: [],
-        unitDefinitions: []
+        unitDefinitions: [],
+        historicalScore: 0
       })
     },
 
@@ -374,14 +375,6 @@ export const useGameStore = create<GameState>()(
           set({ lastSave: Date.now() })
           break
 
-        case 'achievements':
-          set({ achievements: data.data })
-          break
-
-        case 'achievement_unlocked':
-          console.log(`成就解锁: ${data.achievementId}`)
-          break
-
         case 'leaderboard':
           console.log('收到排行榜数据:', data.data)
           set({ leaderboard: data.data })
@@ -438,12 +431,10 @@ export const useGameStore = create<GameState>()(
           set({
             resources: data.resources,
             modules: data.modules,
-            units: data.units
+            units: data.units,
+            historicalScore: data.historicalScore || 0
           })
-          // 状态更新后自动提交分数
-          setTimeout(() => {
-            get().autoSubmitScore()
-          }, 100)
+          // 移除自动提交分数，避免循环调用
           break
 
         case 'activities_update':
@@ -460,8 +451,7 @@ export const useGameStore = create<GameState>()(
 
         case 'activity_error':
           console.error(`活动错误: ${data.message}`)
-          // 可以在这里添加用户提示，比如显示一个通知
-          alert(`活动创建失败: ${data.message}`)
+          // 只记录错误，不显示alert
           break
 
         case 'unit_definitions':
@@ -504,7 +494,6 @@ export const useGameStore = create<GameState>()(
         }
       }))
 
-      get().checkAchievements()
       return true
     },
 
@@ -582,20 +571,6 @@ export const useGameStore = create<GameState>()(
         }))
       } catch (error) {
         console.error('加载失败:', error)
-      }
-    },
-
-    unlockAchievement: async (achievementId: string) => {
-      const state = get()
-      if (!state.isLoggedIn || !state.ws) return
-
-      try {
-        state.ws.send(JSON.stringify({
-          type: 'unlock_achievement',
-          achievementId
-        }))
-      } catch (error) {
-        console.error('解锁成就失败:', error)
       }
     },
 
@@ -685,10 +660,6 @@ export const useGameStore = create<GameState>()(
       } catch (error) {
         console.error('发送消息失败:', error)
       }
-    },
-
-    checkAchievements: () => {
-      console.log('检查成就...')
     },
 
     saveLoginInfo: () => {

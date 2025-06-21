@@ -1,10 +1,10 @@
 const mysql = require('mysql2/promise');
 
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root', // 修改为你的MySQL用户名
-  password: 'cody1991', // 修改为你的MySQL密码
-  database: 'milkywayidle',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '', // 读取环境变量
+  database: process.env.DB_NAME || 'milkywayidle',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

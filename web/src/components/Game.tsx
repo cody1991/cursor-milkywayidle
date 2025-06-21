@@ -8,6 +8,7 @@ import LoginModal from './LoginModal'
 import FloatingActivities from './FloatingActivities'
 import HelpPanel from './HelpPanel'
 import AnimatedNumber from './AnimatedNumber'
+import { formatNumber } from '../utils/numberFormat'
 
 const Game: React.FC = () => {
   const {
@@ -19,8 +20,35 @@ const Game: React.FC = () => {
     username,
     logout,
     loadLoginInfo,
-    resources
+    resources,
+    units,
+    unitDefinitions
   } = useGameStore()
+
+  // 计算每个模块的分数
+  const calculateModuleScore = (moduleId: string) => {
+    if (!units || !unitDefinitions) return 0
+
+    let moduleScore = 0
+    for (const unitKey in units) {
+      const [unitModuleId, unitId] = unitKey.split('.')
+      if (unitModuleId === moduleId) {
+        const unit = units[unitKey]
+        const unitDef = unitDefinitions.find(
+          (def) => def.moduleId === moduleId && def.unitId === unitId
+        )
+        if (unitDef && typeof unit.owned === 'number' && typeof unitDef.score === 'number') {
+          moduleScore += unit.owned * unitDef.score
+        }
+      }
+    }
+    return moduleScore
+  }
+
+  const milkScore = calculateModuleScore('cow')
+  const harvestScore = calculateModuleScore('harvest')
+  const woodScore = calculateModuleScore('wood')
+  const totalScore = milkScore + harvestScore + woodScore
 
   // 从localStorage获取保存的主标签页状态，默认为'resources'
   const getSavedTab = (): 'resources' | 'achievements' | 'leaderboard' | 'chat' | 'help' => {
@@ -125,19 +153,24 @@ const Game: React.FC = () => {
         {/* 左侧资源显示 */}
         <div className="resources-display">
           <div className="resource-item">
+            <span className="resource-icon">🏆</span>
+            <span className="resource-name">总分:</span>
+            <AnimatedNumber value={totalScore} duration={800} formatFunction={formatNumber} keepDecimals={false} />
+          </div>
+          <div className="resource-item">
             <span className="resource-icon">🥛</span>
             <span className="resource-name">牛奶:</span>
-            <AnimatedNumber value={Math.floor(resources.milk?.amount || 0)} duration={800} keepDecimals={false} />
+            <AnimatedNumber value={milkScore} duration={800} formatFunction={formatNumber} keepDecimals={false} />
           </div>
           <div className="resource-item">
             <span className="resource-icon">🌿</span>
             <span className="resource-name">采摘:</span>
-            <AnimatedNumber value={Math.floor(resources.harvest?.amount || 0)} duration={800} keepDecimals={false} />
+            <AnimatedNumber value={harvestScore} duration={800} formatFunction={formatNumber} keepDecimals={false} />
           </div>
           <div className="resource-item">
             <span className="resource-icon">🪵</span>
             <span className="resource-name">木材:</span>
-            <AnimatedNumber value={Math.floor(resources.wood?.amount || 0)} duration={800} keepDecimals={false} />
+            <AnimatedNumber value={woodScore} duration={800} formatFunction={formatNumber} keepDecimals={false} />
           </div>
         </div>
 

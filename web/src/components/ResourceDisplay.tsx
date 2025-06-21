@@ -52,15 +52,30 @@ const ResourceDisplay: React.FC = () => {
 
   // 开始生产活动
   const handleStartActivity = (moduleId: string, unitId: string) => {
-    const unitKey = `${moduleId}.${unitId}`
-    const setting = productionSettings[unitKey] || { times: 1, infinite: false }
+    // 检查是否已有相同类型的活动在进行中
+    const existingActivity = activities.find(activity =>
+      activity.moduleId === moduleId && activity.unitId === unitId && activity.isActive
+    )
 
-    // 如果设置为无限次，使用INFINITE_PRODUCTION常量
-    const times = setting.infinite ? INFINITE_PRODUCTION : setting.times
-
-    if (times > 0 || times === INFINITE_PRODUCTION) {
-      startActivity(moduleId, unitId, times)
+    if (existingActivity) {
+      return // 直接返回，不显示alert
     }
+
+    // 检查活动数量限制
+    if (activities.length >= 5) {
+      return // 直接返回，不显示alert
+    }
+
+    const setting = productionSettings[`${moduleId}.${unitId}`]
+    if (!setting) {
+      console.error('找不到生产设置')
+      return
+    }
+
+    const times = setting.infinite ? -1 : setting.times
+    console.log(`开始活动: ${moduleId}.${unitId}, 次数: ${times}`)
+
+    startActivity(moduleId, unitId, times)
   }
 
   // 组件加载时恢复状态
@@ -114,6 +129,15 @@ const ResourceDisplay: React.FC = () => {
       description: unit.description,
       score: unit.score
     }
+  }
+
+  // 检查单位是否已在生产中
+  const isUnitInProduction = (moduleId: string, unitId: string) => {
+    return activities.some(activity =>
+      activity.moduleId === moduleId &&
+      activity.unitId === unitId &&
+      activity.isActive
+    )
   }
 
   // 如果单位定义还没有加载，显示加载状态
@@ -280,14 +304,18 @@ const ResourceDisplay: React.FC = () => {
                         {/* 开始生产按钮 */}
                         {canUse && (
                           <button
-                            className={`start-activity-btn ${activities.length >= 5 ? 'disabled' : ''}`}
+                            className={`start-activity-btn ${activities.length >= 5 || isUnitInProduction(selectedSubModule, unitId) ? 'disabled' : ''}`}
                             onClick={() => handleStartActivity(selectedSubModule, unitId)}
-                            disabled={activities.length >= 5}
-                            title={activities.length >= 5 ? '已达到最大活动数量限制(5个)' : ''}
+                            disabled={activities.length >= 5 || isUnitInProduction(selectedSubModule, unitId)}
+                            title={
+                              activities.length >= 5 ? '已达到最大活动数量限制(5个)' :
+                                isUnitInProduction(selectedSubModule, unitId) ? '该单位已在生产中' : ''
+                            }
                           >
-                            {activities.length >= 5 ? '活动数量已达上限' : (
-                              productionSettings[`${selectedSubModule}.${unitId}`]?.infinite ? '开始无限生产' : '开始生产'
-                            )}
+                            {activities.length >= 5 ? '活动数量已达上限' :
+                              isUnitInProduction(selectedSubModule, unitId) ? '生产中...' :
+                                (productionSettings[`${selectedSubModule}.${unitId}`]?.infinite ? '开始无限生产' : '开始生产')
+                            }
                           </button>
                         )}
 
